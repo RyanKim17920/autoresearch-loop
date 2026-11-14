@@ -1,0 +1,89 @@
+{
+ "slug": "nanobrain-smri",
+ "title": "nanobrain-smri",
+ "reference_points": [
+  {
+   "id": "baseline-smri-walnut",
+   "label": "Walnut",
+   "kind": "frozen_brain_mri_foundation_model",
+   "command": "python -m brainmarks_smri walnut open",
+   "final_score": 0.556,
+   "metrics": {
+    "abide_diagnosis": 0.167311,
+    "adhd_diagnosis": 0.015386,
+    "cnp_diagnosis": 0.228867,
+    "ucsf_idh": 0.748991,
+    "upenn_survival_1y": 0.348633,
+    "soop_mrs_poor": 0.543318,
+    "ixi_age": 0.865572,
+    "openbhb_age": 0.893287,
+    "brats_enhancing_tumor": 0.757925,
+    "brats_whole_tumor": 0.909232,
+    "soop_lesion": 0.637479
+   }
+  },
+  {
+   "id": "baseline-smri-nnfoundation-vit",
+   "label": "nnFoundation ViT",
+   "kind": "frozen_brain_mri_foundation_model",
+   "command": "python -m brainmarks_smri nnfoundation-vit open",
+   "final_score": 0.4922,
+   "metrics": {
+    "abide_diagnosis": 0.080963,
+    "adhd_diagnosis": -0.028849,
+    "cnp_diagnosis": 0.157711,
+    "ucsf_idh": 0.681115,
+    "upenn_survival_1y": 0.277175,
+    "soop_mrs_poor": 0.460618,
+    "ixi_age": 0.818319,
+    "openbhb_age": 0.824537,
+    "brats_enhancing_tumor": 0.709689,
+    "brats_whole_tumor": 0.826266,
+    "soop_lesion": 0.606657
+   }
+  },
+  {
+   "id": "baseline-smri-neuro-jepa",
+   "label": "Neuro-JEPA",
+   "kind": "frozen_brain_mri_foundation_model",
+   "command": "python -m brainmarks_smri neuro-jepa open",
+   "final_score": 0.4775,
+   "metrics": {
+    "abide_diagnosis": 0.061654,
+    "adhd_diagnosis": -0.037731,
+    "cnp_diagnosis": 0.150465,
+    "ucsf_idh": 0.674446,
+    "upenn_survival_1y": 0.270173,
+    "soop_mrs_poor": 0.455345,
+    "ixi_age": 0.819509,
+    "openbhb_age": 0.787849,
+    "brats_enhancing_tumor": 0.678027,
+    "brats_whole_tumor": 0.829272,
+    "soop_lesion": 0.563491
+   }
+  },
+  {
+   "id": "baseline-smri-dinov3",
+   "label": "DINOv3",
+   "kind": "frozen_natural_image_foundation_model",
+   "command": "python -m brainmarks_smri dinov3 open",
+   "final_score": 0.4289,
+   "metrics": {
+    "abide_diagnosis": 0.011927,
+    "adhd_diagnosis": -0.112508,
+    "cnp_diagnosis": 0.114857,
+    "ucsf_idh": 0.629659,
+    "upenn_survival_1y": 0.226924,
+    "soop_mrs_poor": 0.392816,
+    "ixi_age": 0.762203,
+    "openbhb_age": 0.74079,
+    "brats_enhancing_tumor": 0.649854,
+    "brats_whole_tumor": 0.788087,
+    "soop_lesion": 0.513291
+   }
+  }
+ ],
+ "metric_name": "open_score",
+ "metric_direction": "maximize",
+ "run_count": 15
+}

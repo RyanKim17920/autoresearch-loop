@@ -1,0 +1,134 @@
+# THE OFFLINE TASK. Selected by `--task tasks/fake.yaml`, and by nothing else.
+#
+# WHY A SECOND SPEC EXISTS AT ALL. `tasks/nanopath.yaml` is the only task this
+# tree has ever run, so every claim that the core is task-independent has been
+# unfalsifiable: one implementation cannot disagree with itself. This file is the
+# disagreement. It declares a task with no repo, no home, no cluster and no
+# board, and the same core must load it, gate it and score it without an edit.
+#
+# It is NOT a fixture and NOT a mock. `adapters.fake:FakeAdapter` is a full
+# implementation of the Protocol, and the trial score it returns REFLECTS THE
+# APPLIED DIFF -- which is the property `main.py selftest` checks and the reason
+# the rest of the suite is not a tautology.
+#
+# Every field below is declared for THIS task. Nothing here is a port of a live
+# constant, so nothing here may be read as evidence about the real one.
+
+name: fake-offline
+# A dotted module:Class STRING, resolved once by main.resolve_adapter and passed
+# DOWN. kernel/model.py never resolves it -- see the note in tasks/nanopath.yaml.
+adapter: adapters.fake:FakeAdapter
+# Deliberately empty: the offline task owns no checkout and no state home. An
+# adapter that needed one would be reaching for a filesystem it must not have.
+repo: ""
+home: ""
+
+slots:
+  # One slot, unweighted. The panel arithmetic is exercised by the real task; what
+  # this task exists to prove is that a DIFFERENT decomposition loads and scores.
+  score_key: final_probe_score
+  weights: {offline: 1}
+  metric_tails: [offline_metric]
+  panel_members_file: ""
+
+surface:
+  # The offline task's whole editable surface. `locked` and `protected_keys` are
+  # non-empty on purpose: a spec that declared an empty constitution would make
+  # the constitution gates vacuous here, and "no gate fired" would look identical
+  # to "every gate passed" -- the exact failure mode the locked-path gate had.
+  writable: [fake_model.py, fake_config.yaml]
+  locked: [fake_probe.py]
+  protected_keys: [eval.dataset, eval.split_seed]
+  cap_ceilings: {train.max_train_samples: 1000}
+  no_new_top_level_module: true
+
+# THE TRACKS, declared rather than defaulted. A track NAME is task inventory
+# (kernel/model.py's two rules), and the behavioural contract drives
+# `cycle --track train` through this task. While it was undeclared the name came
+# from `config.TRACK_ORDER` -- one task's env-defaulted dispatch order answering
+# for every task, which is `docs/phase5_results.md` site C. No numbers: the
+# offline task runs no waves, so `Track()`'s task-independent defaults stand
+# rather than an invented shape.
+#
+# `preprobe` is here because THIS TASK USES IT, not as decoration: two
+# behavioural tests drive it through the offline CLI -- the ideas filter needs a
+# second track name to prove it does not leak across one, and the journal
+# ordering test needs one append per track. Both passed while the CLI's
+# `choices=` was a hardcoded `("train", "preprobe")` literal, i.e. while the
+# validation they cleared belonged to a DIFFERENT task's vocabulary. Now that
+# the vocabulary is spec-derived, a track this task exercises is a track this
+# task must declare -- which is the whole point.
+noise:
+  # ===================================================================
+  # THE OFFLINE STAND-IN DECLARES SYNTHETIC SCALES.  IT DOES NOT MEASURE THEM.
+  # ===================================================================
+  #
+  # WHAT WAS HERE BEFORE: nothing.  This block did not exist, and until 2026-09
+  # that was not "no noise model" -- kernel/model.Noise held nanopath-v1's
+  # measured sigmas as its DEFAULTS, so this file silently ran on
+  # same_seed_sd 0.0016, seed_transfer_sd 0.0034, replicate_sd 0.0016 and a
+  # graduation bar of exactly 0.01.  The whole offline test suite was
+  # calibrated on a pathology benchmark it never touches, and nothing said so.
+  #
+  # WHAT THE TRUE MEASURED ANSWER WOULD BE.  adapters/fake's score is
+  #     round(0.7123 + 0.001 + (sha256(config_diff, code_change) % 99000)/1e6)
+  # -- a pure function of the diff.  There is no RNG, and `run_trial` has no
+  # seed parameter at all.  Measured: 20 identical calls, sd exactly 0.0.  Not
+  # "small"; not "fixed seed"; ZERO, by construction.
+  #
+  # WHY ZERO IS NOT WRITTEN BELOW.  The schema refuses a zero sigma, and it is
+  # right to: at sd 0 every delta reads as infinite significance and every
+  # sigma-denominated gate passes unconditionally.  That is the loudest
+  # possible form of the defect this block exists to close -- a stand-in that
+  # graduates everything is worse than one that graduates on v1's bar.
+  #
+  # WHY NOT UNMEASURED, WHICH IS WHAT nanopath_v2.yaml DECLARES.  UNMEASURED
+  # was tried here first and the suite refuted it: 90 tests fail, every one of
+  # them a sigma-denominated gate correctly REFUSING.  That is not the fake
+  # task discovering it had no calibration.  It is the fake task discovering
+  # that its FIXTURES have one -- test_first_trial_kill's -0.0034 IS one sigma
+  # at seed_transfer_sd 0.0034, and a dozen others are written the same way.
+  # Those numbers are a scale this task's own test data asserts, so the task
+  # has to state it.  Declaring UNMEASURED while shipping fixtures calibrated
+  # to 0.0034 would not be more honest; it would move the undeclared
+  # assumption from this file into the fixtures, which is the same defect with
+  # a worse hiding place.  v2's situation is the opposite and that is why its
+  # answer differs: v2 has no fixtures asserting a scale, it has real GPU work
+  # nobody has run, and inventing a number there would be a fabrication.
+  #
+  # SO: DECLARED, SYNTHETIC, AND THE DECLARATION IS THE POINT.  These are the
+  # same three values as before -- the fix was never about the values.  It is
+  # about where they live.  Before, they arrived from a package that belongs to
+  # no task, so re-measuring nanopath would silently have re-tuned every
+  # threshold in the offline suite.  Now this task asserts its own scale,
+  # nanopath asserts its measured one, and neither can move the other.  Delete
+  # these three lines and the spec does not fall back to v1 -- it fails to
+  # load, naming each missing field.  That is the whole difference between a
+  # declaration and a default.
+  #
+  # "Synthetic" is load-bearing, and nothing may cite these as evidence: no
+  # run produced them, and a graduation verdict computed from them is fiction.
+  # The fake task exists to exercise PLUMBING -- dispatch, worktrees, ledger
+  # writes, gate wiring, CLI shape.  A behavioural test that genuinely needs a
+  # DIFFERENT bar must declare the sigma it wants in its own fixture spec, and
+  # thereby say what it is assuming.
+  same_seed_sd: 0.0016
+  seed_transfer_sd: 0.0034
+  replicate_sd: 0.0016
+  # NOT measurements, so UNMEASURED is not available for either.  floor_sigmas
+  # is a dimensionless policy multiple ("a delta under one sigma is noise") --
+  # 1.0, not v1's 1.1765, because this task has no reason to adopt v1's floor
+  # POLICY either; it states its own.  inert_tolerance is an absolute epsilon
+  # and is a real choice for this task: fake scores are rounded to 6dp at the
+  # source, so 1e-6 is the finest difference that can exist in them -- v1's
+  # 1e-4 would have called a 100x-representable change numerically inert.
+  floor_sigmas: 1.0
+  inert_tolerance: 1.0e-6
+
+tracks:
+  train: {}
+  preprobe: {}
+
+# No board. `max_per_cycle` is still declared, and FakeAdapter still APPLIES it,
+# so the cap stays testable in the only mode the suite can run.
+publish: {adapter_hook: "", max_per_cycle: 2}

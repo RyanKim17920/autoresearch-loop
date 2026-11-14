@@ -1,0 +1,53 @@
+# A minimal stand-in for a nanopath checkout's configs/main.yaml (only the `probe` block the nanopath_v2 task's
+# forbid_config reads). tests/loop/conftest.py points NANOPATH_REPO here when no real checkout is configured.
+probe:
+  enabled: true
+  model_weights: ema
+  count: 1
+  datasets:
+  - bach
+  - bracs
+  - break_his
+  - crc
+  - esca
+  - mhist
+  - pcam
+  - spider_breast
+  - spider_colorectal
+  - spider_skin
+  - spider_thorax
+  - wilds
+  segmentation_datasets:
+  - pannuke
+  - segpath_epithelial
+  - segpath_lymphocytes
+  slide_datasets:
+  - ucla_lung
+  auc_datasets:
+  - surgen
+  survival_datasets:
+  - leopard_bcr
+  - cptac_pda_os
+  robustness_datasets:
+  - pathorob
+  dataset_roots:
+    bach: /data/datasets/bach
+    bracs: /data/datasets/bracs
+    break_his: /data/datasets/break_his
+    crc: /data/datasets/crc
+    esca: /data/datasets/esca
+    mhist: /data/datasets/mhist
+    pcam: /data/datasets/pcam
+    spider_breast: /data/datasets/spider_breast
+    spider_colorectal: /data/datasets/spider_colorectal
+    spider_skin: /data/datasets/spider_skin
+    spider_thorax: /data/datasets/spider_thorax
+    wilds: /data/datasets/wilds
+    pannuke: /data/datasets/pannuke
+    segpath_epithelial: /data/datasets/segpath_epithelial
+    segpath_lymphocytes: /data/datasets/segpath_lymphocytes
+    cptac_pda_os: /data/datasets/cptac_pda_os
+    leopard_bcr: /data/datasets/leopard_bcr
+    pathorob: /data/datasets/pathorob
+    surgen: /data/datasets/surgen
+    ucla_lung: /data/datasets/ucla_lung

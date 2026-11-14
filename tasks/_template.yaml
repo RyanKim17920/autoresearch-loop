@@ -1,0 +1,94 @@
+# THE TASK TEMPLATE (docs/new_task.md). Copy to tasks/<name>.yaml and fill every <...>. Everything not listed here
+# takes the loop's GENERIC default (loop/spec.py): the robust-tau2 bar, local re-root, re-root ports, futility early
+# stop, test partial placement, the preempt-backoff cap, the root noise floor and the research spend breaker are ON;
+# absolute score-unit thresholds scale with the measured panel_sd (loop.spec.SIGMA_SCALED). Print what a task
+# resolves to with `uv run python -m loop effective-config --task tasks/<name>.yaml`.
+#
+# As committed it resolves end to end on the offline simulator (tests/loop/test_task_conformance.py loads it).
+name: template-task
+adapter: unused                       # legacy SDK key, not read by the v3 loop (loop.execution_adapter is)
+repo: ""                              # <absolute path of the training repo the loop edits>
+home: ""                              # <state home>; the loop's state dir defaults to <home>/loop
+
+# ---- the score: one summary key per axis, the official panel weights ----
+slots:
+  score_key: panel_score              # <the run summary's official aggregate>
+  vector: [task_a, task_b]            # <one summary key per axis>
+  weights: {task_a: 0.5, task_b: 0.5}
+  metric_tails: []
+  panel_members_file: ""
+
+# ---- what an idea may edit ----
+surface:
+  writable: [config.yaml, train.py, model.py]   # the FIRST yaml is the config every reader edits (= project.config_rel)
+  locked: [eval.py]                   # the evaluator: never edited
+  protected_keys: [eval.seed]         # config keys no idea may change (budget, eval identity, data identity)
+  cap_ceilings: {}
+  no_new_top_level_module: true
+
+# ---- noise: measured by `loop calibrate` from root replicates (it rewrites these lines) ----
+noise:
+  same_seed_sd: UNMEASURED
+  seed_transfer_sd: UNMEASURED
+  replicate_sd: UNMEASURED
+  floor_sigmas: 1.0                   # dimensionless policy multiplier
+  inert_tolerance: 1.0e-4             # float-identity epsilon
+
+tracks:
+  train: {}
+
+publish: {adapter_hook: "", max_per_cycle: 2}
+
+loop:
+  # <module:Class> of your adapter (contracts.ExecutionAdapter + config_rel; contracts.ADAPTER_OPTIONAL lists the
+  # optional capabilities). The simulator stands in here so the template resolves.
+  execution_adapter: loop.adapters.sim:SimAdapter
+
+  project:
+    name: template
+    base_sha: ""                      # <the root commit every node descends from>
+    runs_root: ""                     # <where run output dirs go>
+    worktrees_root: ""                # <where node worktrees go>
+    config_rel: config.yaml
+    python: ""                        # <the venv python jobs run under; '' = <repo>/.venv/bin/python>
+    aggregation: weighted
+    axes:
+      - {name: a, key: task_a, label: "task A", weight: 0.5}
+      - {name: b, key: task_b, label: "task B", weight: 0.5}
+    target: a                         # the ideation steering axis (tests always score the full panel)
+    guard: []                         # axes whose loss vetoes a pass (with harm_h); [] = the catastrophic veto only
+    harm_h: {}
+    axis_exclude: []
+    composite: official               # the screening composite IS the official panel
+
+  # domain text: prompt overlays (<name>.md in prompt_dir wins over loop/prompts) and text rules (loop.project.rule)
+  domain:
+    prompt_dir: ""
+    # EVERY rule left out falls back to NANOPATH's text (pathology SSL, TCGA tiles, DINOv2 init, GenBio): set at least
+    # these for a new domain (tasks/nanobrain.yaml sets ~40; `rg "P.rule\(" loop` lists them all), and overlay the
+    # nanopath-worded prompts (ideation.md, first_principles.md, plateau.md, brief_bold.md, scout.md) in prompt_dir
+    rules:
+      analogy_field: "<your field / method>"
+      regime: "<one line: model, data, budget, how it is scored>"
+      kuhn_distant: "<your field, for the distant-analogy prompt>"
+      judge_system: "<the slate judge's system prompt: a skeptical researcher in your field ...>"
+      init_legacy: "<what keeping the current init requires>"
+      init_swap: "<what an init / architecture swap may do>"
+      forbid_data: "<data / weights no change may use>"
+      budget_fixed: "<the fixed training budget, in words>"
+
+  # SLURM: pools fill in order; a preemptible pool's jobs are requeued (and resumed when the adapter supports it)
+  slurm:
+    time_limit: "02:00:00"
+    pools:
+      - {name: primary, account: "<account>", qos: normal, partition: "<partition>", slots: 4}
+
+  # noise: paired-delta sds, measured by `loop calibrate` (UNMEASURED = calibrate first; `loop run` does it)
+  panel_sd: UNMEASURED
+  axis_sd: {task_a: UNMEASURED, task_b: UNMEASURED}
+
+  # idea families: config key globs / repo paths per mechanism family (none may overlap)
+  families:
+    optimization: {keys: ["lr", "warmup*", "weight_decay"], paths: [train.py]}
+    architecture: {keys: ["model.*"], paths: [model.py], init_check: true}
+  init_compat: {paths: [model.py]}

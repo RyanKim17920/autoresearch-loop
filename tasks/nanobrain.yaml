@@ -1,0 +1,804 @@
+# THE NANOBRAIN-SMRI TASK -- the worked example.  Selected by `--task tasks/nanobrain.yaml`.
+#
+# Brain-MRI self-supervised pretraining (https://github.com/MedARC-AI/nanobrain): a 3D ViT-B masked autoencoder on
+# FOMO300K trained for ONE HOUR of wall time on one H100, scored by brainmarks-smri's `open` group (the mean of 11
+# downstream tasks: open = (6 cls + 2 reg + 3 seg) / 11) and submitted to the Labless project `nanobrain-smri`.
+#
+# MACHINE-SPECIFIC VALUES come from the environment (the spec loader expands ${VAR} and ${VAR:-default}):
+#   NANOBRAIN_REPO, NANOBRAIN_LOOP_HOME, NANOBRAIN_RUNS_ROOT, NANOBRAIN_WORKTREES, NANOBRAIN_PYTHON,
+#   NANOBRAIN_CONFIG_REL (the root recipe's config, repo-relative), NANOBRAIN_BASE_SHA (REQUIRED: the root commit
+#   every node descends from), SLURM_ACCOUNT, SLURM_QOS, SLURM_PARTITION, SLURM_IDLE_ACCOUNT, SLURM_IDLE_QOS.
+#
+# The noise block holds the values `loop calibrate` measured on the original root; re-run
+# `uv run python -m loop calibrate --task tasks/nanobrain.yaml` for your own root (it rewrites them).
+# Brain-MRI-pretrained weights or teachers are BANNED (competition rule); natural-image weights are legal.
+# Every key is documented in loop/spec.py; the legacy `adapter:` key is not read by the loop.
+name: nanobrain-smri
+adapter: adapters.nanobrain:NanobrainAdapter
+repo: "${NANOBRAIN_REPO:-/path/to/nanobrain}"
+home: "${NANOBRAIN_LOOP_HOME:-/path/to/loop-home}"
+slots:
+  score_key: nb_open
+  vector:
+  - nb_cls_mean
+  - nb_reg_mean
+  - nb_seg_mean
+  weights:
+    nb_cls_mean: 0.5454545454545454
+    nb_reg_mean: 0.18181818181818182
+    nb_seg_mean: 0.2727272727272727
+  metric_tails: []
+  panel_members_file: ''
+surface:
+  writable:
+  - "${NANOBRAIN_CONFIG_REL:-src/nanobrain/config/default_pretrain.yaml}"
+  - src/nanobrain/config/*.yaml
+  - src/nanobrain/train.py
+  - src/nanobrain/model.py
+  - src/nanobrain/modules.py
+  - src/nanobrain/data.py
+  - src/nanobrain/misc.py
+  - src/nanobrain/optim.py
+  - src/nanobrain/prep.py
+  - src/nanobrain/*.py
+  - src/nanobrain/config/*.txt
+  locked:
+  - scripts/
+  - pyproject.toml
+  - uv.lock
+  - src/nanobrain/config/fomo300k_images.txt
+  - src/nanobrain/config/fomo300k_images_qc.txt
+  - src/nanobrain/select_images.py
+  - src/nanobrain/train.py::time_limit = args.time_limit * 60...time_limit = args.time_limit * 60
+  - src/nanobrain/train.py::wall_time = prev_wall_time...done = step == total_steps or wall_time >= time_limit
+  - src/nanobrain/misc.py::load_model
+  - src/nanobrain/misc.py::git_info
+  protected_keys:
+  - time_limit
+  - train_filelist
+  - ckpt
+  - natinit.path
+  - resume
+  - auto_resume
+  - checkpoint_minutes
+  - output_dir
+  - name
+  - seed
+  - device
+  - debug
+  cap_ceilings:
+    time_limit: 60
+    print_freq: 500
+  no_new_top_level_module: false
+noise:
+  same_seed_sd: UNMEASURED
+  seed_transfer_sd: 0.00490367
+  replicate_sd: 0.00301668
+  floor_sigmas: 1.1764705882352942
+  inert_tolerance: 0.0001
+llm_default_backend: opus
+tracks:
+  train: {}
+publish:
+  adapter_hook: ''
+  max_per_cycle: 2
+loop:
+  execution_adapter: loop.adapters.nanobrain:NanobrainAdapter
+  project:
+    name: nanobrain
+    base_sha: "${NANOBRAIN_BASE_SHA:-}"
+    runs_root: "${NANOBRAIN_RUNS_ROOT:-/path/to/runs}"
+    worktrees_root: "${NANOBRAIN_WORKTREES:-/path/to/worktrees}"
+    config_rel: "${NANOBRAIN_CONFIG_REL:-src/nanobrain/config/default_pretrain.yaml}"
+    python: "${NANOBRAIN_PYTHON:-/path/to/nanobrain/.venv/bin/python}"
+    aggregation: weighted
+    axes:
+    - name: cls
+      key: nb_cls_mean
+      label: classification (2*AUROC-1)
+      weight: 6
+      tasks:
+      - abide_diagnosis
+      - adhd_diagnosis
+      - cnp_diagnosis
+      - ucsf_idh
+      - upenn_survival_1y
+      - soop_mrs_poor
+    - name: reg
+      key: nb_reg_mean
+      label: regression (R2, brain age)
+      weight: 2
+      tasks:
+      - ixi_age
+      - openbhb_age
+    - name: seg
+      key: nb_seg_mean
+      label: segmentation (Dice)
+      weight: 3
+      tasks:
+      - brats_enhancing_tumor
+      - brats_whole_tumor
+      - soop_lesion
+    target: cls
+    guard: []
+    harm_h: {}
+    axis_exclude: []
+    budget:
+      kind: wall
+      minutes: 60
+      key: time_limit
+    composite: official
+    throughput:
+      key: nb_steps
+      tol: 0.08
+    noise_floor_seeds: 5
+  domain:
+    prompt_dir: tasks/nanobrain/prompts
+    rules:
+      analogy_field: brain-MRI / MAE
+      regime: a 3D ViT-B masked autoencoder on FOMO300K brain MRI from the natural-image MAE-B init, ONE HOUR of wall clock
+        on one H100 (a wall-clock-keyed schedule), scored by brainmarks-smri's open group (the mean of 11 downstream tasks),
+        a root that already stacks the leader's recipe
+      bold_absolute: 'STEP-0 IDENTITY IS RELAXED for this lane: new modules may be randomly initialised and the initial
+        loss may differ from the parent''s. Still absolute: no externally pretrained weights or teachers may initialise
+        or guide training (brain-MRI-pretrained ones are banned outright; the root''s natural-image MAE-B init (natinit:
+        facebook/vit-mae-base blocks + inflated patch embed, the root config''s natinit.* keys; natinit.path is protected)
+        is the ONLY pretrained source allowed); only FOMO300K images; the wall-clock budget (time_limit), the locked evaluation
+        package and the locked files.'
+      budget_fixed: '- The TRAINING BUDGET is fixed: one hour of wall clock (time_limit) on one H100, starting from the
+        root''s natural-image MAE-B init (natinit). Training longer is impossible; total_steps / epochs / decay_epochs are
+        inert under time_schedule. Throughput is a CONSTRAINT, not a lever (more images in the hour measured flat): what
+        can change is what is learned per image.'
+      carried_lesson: 'Changes that break the checkpoint format the locked evaluator loads (model_kwargs.checkpoint, encoder
+        forward on 3D volumes) score nothing: keep the encoder interface (input volume -> feature tokens) intact; the harness
+        checks it and rejects failures.'
+      category_rx_context: neighbo|spatial|subject|cross.?sequence|multi.?sequence|context|adjacent|region
+      category_rx_data: data_curation|filelist|dataset|curat|sampl|filter|balanc|source
+      category_rx_pathology: anatom|tissue|bias.?field|skull|brain.?mask|symmetr|hemispher|voxel|spacing|contrast|lesion|sequence
+      category_rx_pretext: pretext|objective|predict|reconstruct|jepa|contrast|distill|cluster|target|loss
+      category_rx_schedule: stage|curricul|phase|progressive|schedule_clock|compute.?redistrib|multi.?res|resolution.?sched|mask(ing)?.?(ratio|schedule|curricul|pattern|strateg|block|generat)
+      databank_forbid_msg: pretrained weights (brain-MRI banned; only the root's natural-image MAE-B init (natinit) is allowed)
+        or non-FOMO300K data may not be used
+      databank_header: 'DATA BANK (data_curation: registered FOMO300K subsets): '
+      databank_pack_header: '
+
+        ### Data bank (data_curation: registered FOMO300K subsets)
+
+        '
+      family_architecture: 'model and head shapes, the 3D ViT itself (width / depth / patch size / positional encoding)
+        and the root''s natural-image init (natinit.*: which pretrained blocks are copied, the embed inflation, the pretrained
+        blocks'' LR multiplier / layer decay); no new weights source'
+      family_augmentation: 'view / volume generation: crops, intensity jitter, flips, resolution and field of view'
+      family_data_curation: which FOMO300K images are trained on and their normalisation (train_filelist is protected; anneal_filelist,
+        the decay phase's list, is free)
+      family_eval_readout: 'OUT OF SCOPE: no eval-time readout / pooling / embedding change; change how the encoder is trained
+        instead; never labels or probe data'
+      family_objective: SSL loss terms and their weights (the MAE reconstruction target and any auxiliary losses)
+      family_training: the training loop and its mechanics (train.py, data loading, throughput)
+      forbid_data: '- NO change may use pretrained weights or teachers (brain-MRI-pretrained: BrainIAC, BrainFM, FOMO checkpoints,
+        SAM-Med3D, ... banned; natural-image-pretrained: the root''s natural-image MAE-B init (natinit: facebook/vit-mae-base
+        blocks + inflated patch embed, the root config''s natinit.* keys; natinit.path is protected) is the ONLY pretrained
+        source allowed, no other checkpoint may be added), any non-FOMO300K image data, or the evaluation package''s data
+        / code: usage restrictions; any reference is rejected disallowed_data.'
+      forbid_fit_data: FOMO300K training images
+      harm_blocked_header: Harm-blocked (catastrophic loss on a downstream task only; the composite prices every axis)
+      headroom_footer: 'The bar is the root''s multi-seed mean plus the promote margin: a candidate must beat the root itself
+        by the margin on fresh seeds. The frozen reference Walnut (.556) is the only public point above the leaderboard;
+        per task the gap is CLASSIFICATION (adhd, soop_mrs; plausibly site / acquisition confounding in the pooled features),
+        then segmentation. Classification is 6 of 11 of the open mean but has the largest per-run noise, so a single-seed
+        classification gain is mostly one noisy task: argue the mechanism (invariance to site / scanner, anatomy kept) and
+        expect several seeds.'
+      init_legacy: '- Keeping the current init: the run starts from the root''s natinit (encoder blocks + final norm from
+        the natural-image MAE ViT-B, inflated patch embed; pos tables, decoder and heads random) and trains on FOMO300K;
+        new modules are ordinary parts of the model and need no zero-init. The checkpoint must still load in the locked
+        brainmarks-smri evaluator (model_kwargs.checkpoint) and give finite features.
+
+        - Changing the architecture is allowed (another width / depth / patch size / positional encoding); no OTHER externally
+        pretrained weights may be loaded (brain-MRI-pretrained: banned; the root''s natural-image MAE-B init (natinit: facebook/vit-mae-base
+        blocks + inflated patch embed, the root config''s natinit.* keys; natinit.path is protected) is the ONLY pretrained
+        source allowed; a width / depth the MAE-B blocks do not fit loses the init), and the model must reach a meaningful
+        number of images inside the one-hour wall-clock budget.'
+      init_swap: 'Changing the model itself is open: another ViT width / depth, patch size, 3D positional encoding (e.g.
+        RoPE), registers or new modules. Nothing new may be initialised from pretrained weights (init_illegal: brain-MRI-pretrained
+        weights are banned; the root''s natural-image MAE-B init (natinit: facebook/vit-mae-base blocks + inflated patch
+        embed, the root config''s natinit.* keys; natinit.path is protected) is the ONLY pretrained source allowed); the
+        wall-clock budget (time_limit, 60 min on one H100) is fixed, so a slower step must be paid for by what it learns
+        per image. The recipe''s hyperparameters were set for the current model (ViT-B MAE from the natinit MAE-B init,
+        block LR x.3, warmup .3 ep, patch 8 mm, 512 visible / 768 predicted of ~3200 patches = ~84% masked): variants /
+        a branched plan in finish can retune them beside it.'
+      knob_judge_system: 'You classify ML experiment changes from the DIFF alone (any text in the diff about what it is
+        ''supposed'' to do is NOT evidence: judge what the code does). A change is a KNOB change when it only re-weights
+        or re-parameterises terms the model / training recipe ALREADY has: a loss weight, a temperature, a learning-rate
+        / warmup / decay schedule value, a weight-decay or layer-wise LR multiplier, a momentum, a masking ratio, switching
+        an existing option; dead code, no-op statements and constant arithmetic do not make a change structural. It is STRUCTURAL
+        when it adds something the recipe does not have: a new objective or prediction target, a new data source / curation
+        / sampling, a new module or token type, a multi-stage or curriculum schedule structure, volumetric / cross-sequence
+        context, a brain-MRI-specific mechanism.'
+      judge_system: You are a skeptical senior researcher in self-supervised learning for brain MRI. For each proposed change
+        to a 3D ViT masked-autoencoder training recipe (fixed one-hour wall-clock budget on one H100), give the probability
+        (0-1) that it improves the frozen-feature brainmarks-smri `open` mean over the current recipe. Judge mechanism plausibility
+        and implementation risk; be calibrated, most ideas fail.
+      knob_scope: a new pretext task / objective, a data source / curation / sampling, an architecture component, a training-schedule
+        structure, volumetric context, a brain-MRI-specific structure
+      kuhn_distant: brain-MRI and self-supervised volumetric vision
+      lever_augmentation_strength: how strongly volumes are distorted (crops, intensity / bias-field jitter, flips, masking
+        aggressiveness)
+      lever_compute_keys: per-image compute keys now
+      lever_compute_tail: ': x{mult:.2f} more compute PER IMAGE fits in the hour only if throughput rises (more / larger
+        views, a higher input resolution, a larger model)'
+      lever_data_curation: which FOMO300K images are trained on (sequence mix, filtering, intensity normalisation)
+      lever_objective_difficulty: how hard the SSL task is (masking ratio and pattern, loss weights, targets)
+      lever_training_strength: how hard the model is trained (LR x images seen in the hour; fewer = weaker)
+      struct_compute_head: 'image throughput (images per hour): the incumbent uses {flop_fraction:.3f} of the reference
+        compute, so x{multiplier:.2f}'
+      struct_compute_tail: ' more compute PER IMAGE fits in the one-hour wall clock only if throughput rises -- more / larger
+        views, a higher input resolution, a larger model. No node of this epoch measured it at this scale: untested headroom'
+      struct_databank_tail: '): a different FOMO300K subset is one key; declare dataset_spec for a new one'
+      struct_levers: the objective (latent / dense prediction targets), the masking pattern, the input space (canonical
+        / MNI alignment of the volumes), native / higher resolution, the optimizer (Muon), the training data mix, or closing
+        a measured per-task gap to the reference models (throughput alone measured flat)
+      structural_key: dataset|data_dir|volumes?_dir|source|manifest|filelist
+      taxonomy_context: volumetric context (several crops or sequences of one subject as one sample, cross-sequence prediction,
+        position within the head)
+      taxonomy_data: the data source, curation or sampling (which FOMO300K images are trained on, how they are drawn, filtered
+        or balanced over MRI sequences by a computed signal)
+      taxonomy_label_pathology: anatomy
+      taxonomy_pathology: brain-MRI-specific structure (anatomy and tissue contrast, bias field, skull stripping / brain
+        mask, left-right symmetry, voxel resolution and field of view)
+  slurm:
+    time_limit: 02:10:00
+    resume: 'off'
+    resume_tol: 0.0019
+    smoke_probe: 'off'
+    protect_jobs: []
+    smoke_pool: primary
+    smoke_primary_hold: true
+    smoke_primary_max: 4
+    smoke_session_wait_s: 900
+    smoke_wait_s: 10800
+    pools:
+    - name: primary
+      account: "${SLURM_ACCOUNT:-default}"
+      qos: "${SLURM_QOS:-normal}"
+      partition: "${SLURM_PARTITION:-gpu}"
+      slots: 8
+    - name: idle
+      account: "${SLURM_IDLE_ACCOUNT:-default}"
+      qos: "${SLURM_IDLE_QOS:-low}"
+      partition: "${SLURM_PARTITION:-gpu}"
+      slots: 56
+      preemptible: true
+  calibrate:
+    pools: spread
+    max_concurrent: 0
+  noise_prior:
+    df: 22
+    panel_sd: 0.0052
+    axis_sd:
+      nb_cls_mean: 0.008
+      nb_reg_mean: 0.005
+      nb_seg_mean: 0.002
+    source: 'Labless nanobrain-smri replicated seed pairs (public log): per-task seed sd cls .016-.022, age .0065-.008,
+      seg .002-.004'
+  seeds:
+    screen:
+    - 11
+    - 12
+    promote:
+    - 13
+    - 15
+    - 16
+    - 17
+    promote_per_node: 1
+    promote_stage: false
+    confirm_pool:
+    - 14
+    - 101
+    - 102
+    - 103
+    - 104
+    audit:
+    - 201
+    - 202
+    - 203
+    - 204
+    calibration:
+    - 11
+    - 12
+    - 13
+    - 14
+    - 101
+    max_seeds_per_node: 5
+    fresh_base: 100000
+  promotion:
+    p_promote: 0.6
+    confirm_max_seeds: 3
+    alpha_confirm: 0.2
+    alpha_audit: 0.05
+    bank_min_seeds: 4
+    bank_p: 0.8
+    early_confirm: true
+    early_confirm_power: 0.2
+    voi_gain: 0.0013
+  veto:
+    harm_sigmas: 1.0
+    prob: 0.8
+    catastrophic_sigmas: 3.0
+  operator_focus: 'Brain-MRI self-supervised pretraining. The root recipe is a 3D ViT-B masked autoencoder on FOMO300K''s
+    QC''d image list at NATIVE voxel resolution (~84% masked of ~3200 brain patches, patch 8 mm), a level-set head, Muon on the
+    block matrices and a WALL-CLOCK-keyed schedule (warmup, constant LR, then a linear decay over the last part of the 60-minute
+    budget), an auxiliary age-regression head on the global embedding (FINO3D), and NATINIT: the 12 encoder blocks start
+    from the natural-image MAE ViT-B (facebook/vit-mae-base) with the 2D patch embed inflated to 3D, trained at a reduced
+    block LR. Training runs for ONE HOUR of wall time on one H100. That hour is a CONSTRAINT, not a lever: throughput-only
+    changes measured flat, so a change must earn its place by what is learned PER IMAGE (objective, masking, input space
+    / alignment, data), and a slower step must pay for itself. TRAINING-SIDE changes only: eval-time readout / embedding
+    tricks and eval-only diagnostics are out of scope; an eval-side observation may only motivate a training change. The
+    score is the brainmarks-smri `open` mean of 11 downstream tasks (classification 6, brain-age regression 2, segmentation
+    3). The gap to the frozen reference Walnut (.556) is mostly classification, then segmentation; single-seed classification
+    gains are usually noise, so argue the mechanism and expect several seeds. Think from first principles: state a mechanistic
+    model of why the incumbent behaves as it does, find the binding constraint (throughput, schedule, objective, resolution,
+    capacity), derive the change from it, name the measured quantity it should move, and explain why earlier attempts on
+    it failed. Research first and cite it. Hard constraints: only FOMO300K images (train_filelist is protected; anneal_filelist
+    is free), the 60-minute wall budget (time_limit and its accounting lines are locked), no brain-MRI-pretrained weights
+    or teachers (competition rule); the root''s natinit MAE-B init is the only pretrained source (natinit.path is protected,
+    no new weights source may be added); and the locked eval / submitter files.'
+  idea_banks: []
+  data_bank: []
+  scout:
+    v3: true
+    every_hours: 6.0
+    min_ideas: 6
+    max_ideas: 12
+    max_turns: 40
+    timeout_min: 30
+  board:
+    enabled: true
+    project_url: https://api.labless.dev/api/nano-projects/nanobrain-smri
+    log_url: https://api.labless.dev/api/nano-projects/nanobrain-smri/experiment-log?limit=500
+    source_url: https://api.labless.dev/api/runs/{run_id}/source
+    every_hours: 1.0
+    source_max: 60
+    root_runs: []
+    ignore_keys:
+    - name
+    - notes
+    - output_dir
+    - wandb
+    - wandb_entity
+    - wandb_project
+    - seed
+    - num_workers
+    - prefetch_factor
+    - ckpt
+    - resume
+    - auto_resume
+    - checkpoint_period
+    - checkpoint_steps
+    - print_freq
+    - plot_period
+    - plot_nrow
+    - plot_ncol
+    - plot_num_predict
+    - device
+    - distributed
+    - debug
+    - data_root
+    - max_checkpoints
+    reference_facts:
+    - 'Frozen reference models on brainmarks-smri open (public): Walnut .556, nnFoundation ViT .492, Neuro-JEPA .478, DINOv3
+      ViT-B/16 .429.'
+    - 'Walnut is a ViT-L pixel MAE trained with far more compute than the 1-hour budget allows: change the objective or
+      input space, not the image count.'
+    top_k: 10
+    digest_chars: 7000
+    material_new_runs: 10
+  disk_floor_gb: 15
+  local_runs:
+    enabled: true
+    job_tables: []
+    lineages: {}
+    incomparable: []
+    reference_runs: {}
+    context_refs: {}
+    every_hours: 0.5
+    confirm_nodes: true
+    confirm_max_open: 2
+  root_audit:
+    enabled: true
+    max_arms: 6
+    constants_max: 120
+  ideation:
+    pairwise_center: true
+    base_share: 0.2
+    share_window: 40
+    max_share: 0.35
+    min_ideas: 3
+    max_ideas: 5
+    implement_top: 2
+    max_variants: 4
+    external_csv: ''
+    axis_tasks: {}
+    diagnose_precompute: false
+    compute_keys: ^(num_visible|num_predict|num_samples|patch_size|grid_size|target_spacing|native|batch_size|(decoder_)?(embed_dim|depth|num_heads))$
+    personas:
+    - signal processing
+    - optimization theory
+    - data curation
+    - representation geometry
+    - neuroimaging domain
+    - systems / compute
+    struct_retro: false
+    struct_tune_max: 4
+    struct_tune_flat_floor: -0.005
+    struct_tune_knobs:
+      backbone:
+        grid:
+        - key: muon_lr_mult
+          factor: 1.5
+          scale: log
+        - key: weight_decay
+          factor: 2.0
+          scale: log
+        - key: base_lr
+          factor: 2.0
+          scale: log
+        extra:
+        - key: warmup_epochs
+          factor: 0.5
+          scale: log
+        - key: warmup_steps
+          factor: 0.5
+          scale: log
+          unless: epochs
+      loss:
+        dose_rx: (weight|coef|lambda|gamma)$
+        factors:
+        - 0.3
+        - 3.0
+        - 0.1
+        - 0.03
+        - 10.0
+      other:
+        dose_rx: .
+        factors:
+        - 0.3
+        - 3.0
+        - 0.1
+        - 0.03
+        - 10.0
+        fallback:
+          grid:
+          - key: muon_lr_mult
+            factor: 1.5
+            scale: log
+          - key: weight_decay
+            factor: 2.0
+            scale: log
+          - key: base_lr
+            factor: 2.0
+            scale: log
+          extra:
+          - key: warmup_epochs
+            factor: 0.5
+            scale: log
+          - key: warmup_steps
+            factor: 0.5
+            scale: log
+            unless: epochs
+    operator_findings: []
+    operator_programs:
+    - id: op-natinit-lr
+      sessions: false
+      brief: natinit LR / layer-decay ladder on the natural-image-initialised root (layer-wise LR decay often matters for
+        a pretrained init; extrapolate a winning move until two steps fail)
+      arms:
+      - id: blr10
+        stage: A
+        lane: ported
+        family: architecture
+        code_ref: "${NANOBRAIN_BASE_SHA:-}"
+        code_base: "${NANOBRAIN_BASE_SHA:-}"
+        code_files:
+        - src/nanobrain/natinit.py
+        config:
+          natinit.block_lr_mult: 1.0
+        note: pretrained blocks at block LR x1.0 (root x0.3) with the root's short warmup
+        tune:
+          points:
+          - natinit.block_lr_mult: 0.5
+          - natinit.block_lr_mult: 1.5
+          - natinit.layer_decay: 0.9
+          - natinit.layer_decay: 0.95
+    training_only: true
+    require_evidence: true
+    evidence_kinds:
+    - bold
+    - kuhn
+    - program
+    bank_v3: true
+  intake:
+    compound_min_p: 0.8
+    lever_groups:
+      optimizer:
+      - base_lr
+      - lr
+      - min_lr
+      - warmup_steps
+      - decay_steps
+      - warmup_epochs
+      - weight_decay
+      - betas
+      - clip_grad
+      - batch_size
+      - accum_iter
+      - fused_adamw
+      - optimizer
+      - muon_lr_mult
+      - muon_momentum
+      - muon_all_matrices
+      - muon_encoder_only
+      - muon_decoder_only
+      - time_schedule
+      - time_decay_frac
+      masking:
+      - num_visible
+      - num_predict
+      - num_samples
+      - model_kwargs.mask_cube
+      - model_kwargs.min_mask_frac
+      resolution:
+      - patch_size
+      - grid_size
+      - target_spacing
+      - native
+      augmentation:
+      - clip_quantiles
+      data:
+      - anneal_filelist
+      regularization:
+      - model_kwargs.drop_path_rate
+      architecture:
+      - model_kwargs.*
+    mixed_change: split
+    split_screen_seeds: 2
+    noop_fingerprint: true
+    noop_keys:
+      model_kwargs.hard_gamma: model.py:382-388 reduces the loss before the hard weighting at :420-427, and forward_native
+        ignores it
+      model_kwargs.self_recon_weight: forward_native (the root trains native) never reads it
+      epochs: 'dead under time_schedule: the step count is whatever the wall-clock hour reaches'
+      decay_epochs: 'dead under time_schedule: time_decay_frac sets the decay share'
+      patch_embed_lr_mult: misc.get_param_groups has it but make_optimizer never passes it
+  alloc:
+    backlog_max: 12
+    backlog_exclude_program: true
+    backlog_trickle: 1
+    backlog_trickle_kinds:
+    - literature
+    - bold
+    backlog_keep: 20
+    keep_bank_nodes: true
+    priority_categories:
+    - bold
+    prune_stale_family:
+      age_h: 6.0
+      min_measured: 3
+      max_best_delta: 0.004
+      min_seeds: 2
+      max_per_tick: 10
+  researcher:
+    max_concurrent: 4
+    moonshot_max_turns: 110
+    moonshot_timeout_min: 80
+    min_papers: 5
+    min_new_papers: 2
+    min_searches: 2
+    distant_share: 0.3
+  design:
+    lever_p: 0.8
+  components:
+    ablation_rate: 0.15
+    min_ablated: 30
+  novelty:
+    sweep_redirect: true
+    weight: 0.5
+    major_ratio: 2.0
+  status:
+    share_min_n: 3
+    outlier_z: 1.8
+    outlier_sd_d: 0.0063
+  acquire:
+    target_mode: incumbent
+    gap_cap_sigmas: 3.0
+    stack_intercept: 0.0024
+    control_bar: true
+    futility_p: 0.02
+    futility_min_seeds: 2
+    futility_gap_frac: 0.33
+  test:
+    local_reroot: true
+    local_reroot_p: 0.95
+    local_reroot_min_fresh: 4
+    local_reroot_min_gain: 0.002
+    local_reroot_fresh_z: 1.0
+    reroot_port: true
+    reroot_port_k: 4
+    reroot_port_p: 0.6
+    reroot_port_min_seeds: 3
+  labless:
+    enabled: true
+    exploratory: false
+    sibling_gain: 0.0081
+    min_hours_between: 0
+    max_per_day: 2
+    python: "${NANOBRAIN_PYTHON:-/path/to/nanobrain/.venv/bin/python}"
+    token_file: ~/.cache/nanobrain/labless_token.json
+    submit_cmd:
+    - '{python}'
+    - scripts/submit.py
+    - '{out_dir}'
+    push:
+      remote: fork
+      ref: loop/{node}
+    name_into_config: true
+    leader_median: 0.5471
+    promote_margin: 0.005
+    promote_p: 0.7
+    offset: 0.0
+    min_test_seeds: 4
+    sigma_prior_df: 8.0
+  evalonly:
+    enabled: false
+  diagnostics:
+    enabled: false
+  databank:
+    enabled: false
+  prune:
+    enabled: false
+  factorial:
+    flag_knobs: {}
+  holdout:
+    enabled: false
+  extrapolate:
+    enabled: false
+  pairs:
+    axis_exclude: []
+    parent_tol: 0.0074
+    axis_leg_tol: 0.0037
+  prior:
+    tau0: 0.005
+    tau_floor: 0.0005
+    tau_max: 0.05
+  panel_sd: 0.00693484
+  axis_sd:
+    nb_cls_mean: 0.0107243
+    nb_reg_mean: 0.00653876
+    nb_seg_mean: 0.00277153
+  families:
+    optimization:
+      keys:
+      - base_lr
+      - lr
+      - min_lr
+      - warmup_steps
+      - decay_steps
+      - total_steps
+      - warmup_epochs
+      - weight_decay
+      - betas
+      - clip_grad
+      - batch_size
+      - accum_iter
+      - optimizer
+      - muon_lr_mult
+      - muon_momentum
+      - muon_encoder_only
+      - muon_decoder_only
+      - muon_all_matrices
+      - time_schedule
+      - time_decay_frac
+      paths:
+      - src/nanobrain/optim.py
+    regularization:
+      keys:
+      - model_kwargs.drop_path_rate
+    masking:
+      keys:
+      - num_visible
+      - num_predict
+      - num_samples
+      - model_kwargs.mask_cube
+      - model_kwargs.min_mask_frac
+    objective:
+      keys:
+      - model_kwargs.level_weight
+      - model_kwargs.level_thresholds
+      - model_kwargs.level_pool
+      - model_kwargs.norm_target
+      - model_kwargs.grad_loss_weight
+      - model_kwargs.fg_loss_weight
+      - model_kwargs.hard_max
+      - fino3d.*
+      - model_kwargs.decoder_keep
+      - model_kwargs.decoder_global
+      paths:
+      - src/nanobrain/fino.py
+    data_pipeline:
+      keys:
+      - clip_quantiles
+      - grid_size
+      - target_spacing
+      - patch_size
+      - native
+      - anneal_filelist
+      - num_workers
+      - prefetch_factor
+      - prep_threads
+      - prep_lean
+      paths:
+      - src/nanobrain/data.py
+      - src/nanobrain/prep.py
+    architecture:
+      keys:
+      - model_kwargs.depth
+      - model_kwargs.embed_dim
+      - model_kwargs.num_heads
+      - model_kwargs.decoder_depth
+      - model_kwargs.decoder_embed_dim
+      - model_kwargs.decoder_num_heads
+      - model_kwargs.mlp_ratio
+      - model_kwargs.qkv_bias
+      - model_kwargs.proj_bias
+      - model_kwargs.class_tokens
+      - model_kwargs.qk_norm
+      - model_kwargs.decoder_qk_norm
+      - model_kwargs.qk_scale_init
+      - natinit.*
+      paths:
+      - src/nanobrain/model.py
+      - src/nanobrain/modules.py
+      - src/nanobrain/natinit.py
+      - '*'
+      init_check: true
+    training:
+      keys:
+      - amp
+      - amp_dtype
+      - compile
+      - fused_adamw
+      - muon_fused
+      - gc_freeze
+      - cudagraphs
+      - fast_startup
+      - high_priority_stream
+      - decoder_prune_last
+      - flash_attention_impl
+      - checkpoint_period
+      - checkpoint_steps
+      - print_freq
+      - plot_period
+      paths:
+      - src/nanobrain/train.py
+      - src/nanobrain/misc.py
+      init_check: true
+  forbid:
+  - brainmarks|aggregate\.json|labless|submit\.py|site-packages|importlib|\beval/
+  - _getframe|f_locals|f_globals|f_back|\binspect\b|\bgc\.(get_objects|get_referrers|get_referents)\b|sys\.modules|__import__|\bbuiltins\b
+  - \blabels?\.(csv|tsv|json|npy|npz|pt|pkl|parquet|txt)\b|\b(label|target|class)_col
+  - '["''/\\](abide1|adhd200|brats2021|cnp|ixi|openbhb|soop|ucsf_pdgm|upenn_gbm|harbor|oasis\d*|adni|atlas|a4learn|fomo26\w*)\b'
+  - /data/|samples\.tsv|splits\.tsv|\btables/|participants\.tsv
+  - (listdir|scandir|glob|iglob|rglob|iterdir|os\.walk|walk)\s*\(.*(DATA_ROOT|BRAINMARKS_SMRI_DATA)|(DATA_ROOT|BRAINMARKS_SMRI_DATA).*\.(glob|rglob|iterdir|parent)\b
+  - realpath|readlink|\.resolve\(\)|os\.path\.(dirname|split)\(.*DATA_ROOT
+  - loopmeta|eval_started|instances\.jsonl|\bos\.utime\b|/proc/|scontrol|\bsetsid\b|os\.fork\b|nohup|double.?fork
+  - \b(misc|nanobrain\.misc)\.(load_model|git_info|save_model)\s*=|setattr\(\s*(misc|nanobrain\.misc)\b|time\.monotonic\s*=|setattr\(\s*time\b
+  - \bmanual_seed(_all)?\s*\((?![^)]*\b(args|self|cfg)\.seed\b)|\brandom_seed\s*\((?![^)]*\b(args|self|cfg)\.seed\b)|np\.random\.seed\s*\((?![^)]*\b(args|self|cfg)\.seed\b)|\brandom\.seed\s*\((?![^)]*\b(args|self|cfg)\.seed\b)|default_rng\(\s*\d|PYTHONHASHSEED
+  forbid_config: []
+  init_compat:
+    paths:
+    - src/nanobrain/model.py
+    - src/nanobrain/modules.py
+    - src/nanobrain/train.py
+    deny:
+    - brainiac|brain[-_]?fm|brainmvp|brainsegfounder|sam[-_]?med3d|medicalnet|models?[-_]?genesis|swin[-_]?unetr|unetr.*pretrain|\bfomo\b.*(ckpt|weights|pretrain)|anatcl|\bprima\b|brainharmon|medsam|totalsegmentator|nnunet|synthseg|merlin|hf_hub_download|from_pretrained|torch\.hub
+    - torch\.load|safetensors|\bload_file\s*\(|pretrained\s*=\s*True|/data/|\.pth\b|\.ckpt\b|\.safetensors\b|checkpoint[-_]last|np\.load\s*\(|pickle\.load|joblib|urllib|requests\.(get|post)|wget|curl\b
+    - (?<!def )(?<!opt\.)(?<!optimizer\.)load_state_dict\((?!\s*[\w.]+\.state_dict\(\))

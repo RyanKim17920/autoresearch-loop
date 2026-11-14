@@ -1,0 +1,167 @@
+{
+ "run_sub_ba8373cd8f": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "6862d38fd64be9f8c8e5ea9e29d9ad7bee258bb74c62c8a05f3268b0a170af71",
+    "size_bytes": 526,
+    "content": "name: main-baseline\nnotes: ''\noutput_dir: output/main-baseline\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0005\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 0\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_36646f8d97": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "c4ec7f52034030a1bd03cf779a985cfa5121e6078141a7b1fb0a071e47b19c3e",
+    "size_bytes": 528,
+    "content": "name: warmup-2000-s0\nnotes: ''\noutput_dir: output/warmup-2000-s0\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0005\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 2000\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 0\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_61583e2473": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "1323e53fc2fa2be89eb25f4d38e4867db0c84fec69c7618297951b786b2fa4a0",
+    "size_bytes": 528,
+    "content": "name: warmup-2000-s1\nnotes: ''\noutput_dir: output/warmup-2000-s1\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0005\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 2000\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 1\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_c400706a69": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "e8060de45b85427355ca22d57e881368b094f98f8fc9979a7bfa0ed10e301c95",
+    "size_bytes": 528,
+    "content": "name: warmup-6750-s0\nnotes: ''\noutput_dir: output/warmup-6750-s0\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0005\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 0\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_cd7914ae3b": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "15f50eec9b791e33681bc7dde1ba91f57418915fd3ab36d9437a427ece65e4f0",
+    "size_bytes": 528,
+    "content": "name: warmup-6750-s1\nnotes: ''\noutput_dir: output/warmup-6750-s1\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0005\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 1\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_b2cd3dc79c": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "3fab65d06b6bdec8e153235bf35ce42a3ba151ec231f5b0d6f3e5efea089847b",
+    "size_bytes": 531,
+    "content": "name: warmup-13500-s0\nnotes: ''\noutput_dir: output/warmup-13500-s0\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0005\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 13500\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 0\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_7a98cfaa44": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "61a457101e1a4c91df5b1283de210666acd2ba9349e29491f69cc4d7f9b11929",
+    "size_bytes": 531,
+    "content": "name: warmup-13500-s1\nnotes: ''\noutput_dir: output/warmup-13500-s1\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0005\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 13500\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 1\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_fec225cd1a": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "855fa268d6140b2deef9e301aef3ddd84017d076178c9e34342044f344fc78a5",
+    "size_bytes": 519,
+    "content": "name: lr-1e-3-s0\nnotes: ''\noutput_dir: output/lr-1e-3-s0\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.001\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 0\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_4bbf47c043": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "fb0a77b7707bdf9e2a450b8312e1de4872f7937a271c19f0da9341e2876f951a",
+    "size_bytes": 520,
+    "content": "name: lr-2e-4-s0\nnotes: ''\noutput_dir: output/lr-2e-4-s0\ntrain_filelist: src/nanobrain/config/images.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 640\nnum_predict: 1920\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\nbatch_size: 32\nbase_lr: 0.0002\nmin_lr: 1.0e-06\ntime_limit: 60\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: adamw\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 0\ndebug: false\nwandb: false\n"
+   }
+  ]
+ },
+ "run_sub_f675b45d50": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "b45eb929e86bb813480cc9d63e14594cff0eab0bd91865cb445cb2313cb2b8fe",
+    "size_bytes": 582,
+    "content": "name: root-recipe\nnotes: ''\noutput_dir: output/root-recipe\ntrain_filelist: src/nanobrain/config/images_qc.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 512\nnum_predict: 768\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\n  min_mask_frac: 0.05\n  level_weight: 0.5\nbatch_size: 32\nbase_lr: 0.002\nmin_lr: 1.0e-06\ntime_limit: null\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: muon\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 7\ndebug: false\nwandb: false\nmuon_lr_mult: 2\n"
+   }
+  ]
+ },
+ "run_sub_f4969efcbe": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "18b5980947b9625b70cc609786f3be1c9c417b4c9fccefc29228fea231502d73",
+    "size_bytes": 580,
+    "content": "name: muon-x2-s7\nnotes: ''\noutput_dir: output/muon-x2-s7\ntrain_filelist: src/nanobrain/config/images_qc.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 512\nnum_predict: 768\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\n  min_mask_frac: 0.05\n  level_weight: 0.5\nbatch_size: 32\nbase_lr: 0.002\nmin_lr: 1.0e-06\ntime_limit: null\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: muon\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 7\ndebug: false\nwandb: false\nmuon_lr_mult: 4\n"
+   }
+  ]
+ },
+ "run_sub_9817321f02": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "855cd9a2a6ae66cb4404c0e714e5979ea03cec15648dce1be5b123d8223f32fe",
+    "size_bytes": 580,
+    "content": "name: muon-x2-s1\nnotes: ''\noutput_dir: output/muon-x2-s1\ntrain_filelist: src/nanobrain/config/images_qc.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 512\nnum_predict: 768\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\n  min_mask_frac: 0.05\n  level_weight: 0.5\nbatch_size: 32\nbase_lr: 0.002\nmin_lr: 1.0e-06\ntime_limit: null\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: muon\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 1\ndebug: false\nwandb: false\nmuon_lr_mult: 4\n"
+   }
+  ]
+ },
+ "run_sub_a188cc15fb": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "281bf21e27005a193a3b75c09e3a0a8cf8ae1e9567677cbedd8c4af295047e84",
+    "size_bytes": 588,
+    "content": "name: root-recipe-s2\nnotes: ''\noutput_dir: output/root-recipe-s2\ntrain_filelist: src/nanobrain/config/images_qc.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 512\nnum_predict: 768\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\n  min_mask_frac: 0.05\n  level_weight: 0.5\nbatch_size: 32\nbase_lr: 0.002\nmin_lr: 1.0e-06\ntime_limit: null\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: muon\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 2\ndebug: false\nwandb: false\nmuon_lr_mult: 2\n"
+   }
+  ]
+ },
+ "run_sub_b4655f2fa6": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "ad90652c252c4bf82d3276b1516882bb5b4723c1825de962eac9bc74ca368a8c",
+    "size_bytes": 602,
+    "content": "name: variant-hyst\nnotes: ''\noutput_dir: output/variant-hyst\ntrain_filelist: src/nanobrain/config/images_qc.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 512\nnum_predict: 768\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\n  min_mask_frac: 0.05\n  level_weight: 0.5\n  level_hyst: 0.1\nbatch_size: 32\nbase_lr: 0.002\nmin_lr: 1.0e-06\ntime_limit: null\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: muon\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 7\ndebug: false\nwandb: false\nmuon_lr_mult: 2\n"
+   }
+  ]
+ },
+ "run_sub_2047b4c92d": {
+  "files": [
+   {
+    "path": "config.yaml",
+    "present": true,
+    "sha256": "c4c98b3bbac7853820c66be1917c83aff16c9c8ac7be3104b1f5fd0119e65250",
+    "size_bytes": 611,
+    "content": "name: variant-mirror\nnotes: ''\noutput_dir: output/variant-mirror\ntrain_filelist: src/nanobrain/config/images_qc.txt\nnum_workers: 8\npatch_size: 8\nnum_visible: 512\nnum_predict: 768\nmodel_kwargs:\n  depth: 12\n  embed_dim: 768\n  num_heads: 12\n  decoder_depth: 4\n  class_tokens: 0\n  min_mask_frac: 0.05\n  level_weight: 0.5\n  mirror_decoder: true\nbatch_size: 32\nbase_lr: 0.002\nmin_lr: 1.0e-06\ntime_limit: null\ntotal_steps: 22500\nwarmup_steps: 6750\nweight_decay: 0.05\noptimizer: muon\namp: true\ncompile: true\nresume: false\nauto_resume: true\nprint_freq: 100\ndevice: cuda\nseed: 7\ndebug: false\nwandb: false\nmuon_lr_mult: 2\n"
+   }
+  ]
+ }
+}

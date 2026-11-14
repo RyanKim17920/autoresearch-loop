@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+*.egg-info
+.pytest_cache/
+.venv/
+
+# Secrets / local config
+.env
+.env.*
+*.pem
+*.key
+*token*.json
+credentials*.json
+
+# Loop state, runs and logs (never commit)
+loop-home/
+state/
+runs/
+worktrees/
+outputs/
+output/
+slurm/
+transcripts/
+dashboard/
+*.log
+!loop/adapters/fixtures/*.log
+*.out
+!tests/fixtures/**/*.out
+*.err
+
+# Databases, ledgers, pickles, archives
+*.db
+*.db.lock
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.pkl
+*.pickle
+*.jsonl
+*.tar
+*.tar.gz
+*.zip
+*.ckpt
+*.pth
+*.pt
+*.safetensors

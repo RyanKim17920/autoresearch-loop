@@ -1,0 +1,87 @@
+# THE OFFLINE LOOP TASK. Drives tests/loop/* through `loop.adapters.sim:SimAdapter`.
+#
+# Like tasks/fake.yaml this is NOT a measurement of anything: every sigma below is
+# a SYNTHETIC, DECLARED scale for a simulator with seeded noise. Nothing here may
+# be cited as evidence about a real benchmark, and a verdict computed from these
+# numbers is fiction. The file exists so the loop's plumbing (store, world model,
+# bandit, driver, resume) is exercised on a task that shares nothing with
+# nanopath. Three axes, unequal weights (0.5/0.3/0.2), so panel weighting is not
+# a plain mean.
+name: fake-loop
+adapter: adapters.fake:FakeAdapter
+repo: ""
+# No home: the loop's state dir is always passed in (tests use a tmp dir).
+home: ""
+
+slots:
+  score_key: panel_score
+  vector: [alpha, beta, gamma]
+  weights: {alpha: 0.5, beta: 0.3, gamma: 0.2}
+  metric_tails: []
+  panel_members_file: ""
+
+surface:
+  writable: [model.py, train.py, aug.py, config.yaml]
+  locked: [eval.py]
+  protected_keys: [eval.seed]
+  cap_ceilings: {train.epochs: 100}
+  no_new_top_level_module: true
+
+noise:
+  # SYNTHETIC, DECLARED (see header). The sim draws seed noise around these.
+  same_seed_sd: 0.002
+  seed_transfer_sd: 0.004
+  replicate_sd: 0.002
+  floor_sigmas: 1.0
+  inert_tolerance: 1.0e-6
+
+tracks:
+  train: {}
+
+publish: {adapter_hook: "", max_per_cycle: 2}
+
+loop:
+  execution_adapter: loop.adapters.sim:SimAdapter
+  # explicit null: keep the registry's built-in (nanopath) axes -- the core tests replay a nanopath-keyed fixture ledger
+  # under this spec. A real task declares its project, or leaves the key out to derive one from `slots`.
+  project: null
+  slots: 4
+  core_meta: {locks: false}        # a dev worktree's locked files may differ from HEAD; tests/loop/core/test_meta.py checks locks
+  components: {ablation_rate: 0}   # deterministic tests; tests/loop/test_components.py turns it on
+  novelty: {sweep_redirect: false}   # the sim's ideas are knob moves; tests/loop/test_novelty.py turns it on
+  # v3-c8b: the bold lane and the explore / literature slate change which kind an explore slot gets and what its
+  # session must call first; off for the older tests, tests/loop/test_c8b_bold.py turns them on
+  ideation: {bold_share: 0.0, diverge_explore: false,
+             diagnose_precompute: true}   # pinned 11-10: the old default the c5 precompute tests exercise
+  # pinned 11-10 (loop generalization): the pre-generic values the older tests assert -- nanopath's absolute score-unit
+  # literals (a task that leaves them out gets k x panel_sd, loop.spec.SIGMA_SCALED; tests/loop/test_task_conformance.py
+  # covers that) and the nanopath-only run diagnostics, now off by default. (No `slurm:` here: tests append their own.)
+  status: {outlier_sd_d: 0.0034}
+  pairs: {parent_tol: 0.004, axis_leg_tol: 0.002}
+  acquire: {stack_intercept: 0.0013}
+  test: {local_reroot_min_gain: 0.002}
+  labless: {promote_margin: 0.004, sibling_gain: 0.0081}
+  prior: {tau0: 0.005, tau_floor: 0.0005, tau_max: 0.05}
+  evalonly: {sigma_floor: 0.0005, null_tol: 0.0001}
+  diagnostics: {enabled: true}
+  # Paired-delta sds: SYNTHETIC, DECLARED. panel_sd ~ sqrt(sum (w_a sd_a)^2) of the axes.
+  panel_sd: 0.004
+  axis_sd: {alpha: 0.005, beta: 0.006, gamma: 0.007}
+  # Key names are shared with the sim adapter (loop/adapters/sim.py). A key or path
+  # that matches more than one family would be ambiguous, so none overlap.
+  families:
+    optimization:
+      keys: [train.lr, train.warmup, train.epochs]
+      paths: [train.py]
+    regularization:
+      keys: [train.weight_decay]
+    augmentation:
+      keys: ["aug.*"]
+      paths: [aug.py]
+    architecture:
+      keys: ["model.*"]
+      paths: [model.py]
+      init_check: true
+    objective:
+      keys: ["loss.*"]
+  init_compat: {paths: [model.py]}

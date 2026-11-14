@@ -1,0 +1,46 @@
+Traceback (most recent call last):
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/run.py", line 91, in main
+    run_task(model, args.model, name, task_name, subset, cfg)
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/run.py", line 137, in run_task
+    result = PROBES[task.type](model, task, cfg.batch_size, cfg.num_workers)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/probes.py", line 200, in probe_segmentation
+    classifier.fit(
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/logistic.py", line 80, in fit
+    self.coef_, self.intercept_ = fit_logistic(features, targets, self.alpha_, **fit_kwargs)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/logistic.py", line 144, in fit_logistic
+    assert n_iter < max_iter, f"l-bfgs used all {max_iter} iterations without converging"
+           ^^^^^^^^^^^^^^^^^
+AssertionError: l-bfgs used all 1000 iterations without converging
+[00:50:36] INFO evaluating vit_mae_3d on soop_mrs_poor
+[00:53:11] INFO embedded 160/368 in 155s (1.03 samples/s, data 133s, model 19s)
+[00:53:19] INFO embedded 320/368 in 163s (1.97 samples/s, data 134s, model 26s)
+[00:53:20] INFO embedded 368/368 in 164s (2.24 samples/s, data 134s, model 27s)
+[00:53:24] INFO fit 5 logistic regression probes in 2s
+[00:53:25] INFO done eval soop_mrs_poor in 169s
+{"auroc": 0.7299, "auroc_ci": [0.6761, 0.7781], "balanced_accuracy": 0.6664, "balanced_accuracy_ci": [0.6199, 0.7118]}
+[00:53:25] INFO evaluating vit_mae_3d on brats_whole_tumor
+[00:53:45] INFO embedded 160/500 in 20s (7.84 samples/s, data 9s, model 4s)
+[00:53:54] INFO embedded 320/500 in 29s (11.15 samples/s, data 9s, model 7s)
+[00:53:58] INFO embedded 480/500 in 33s (14.42 samples/s, data 10s, model 9s)
+[00:53:59] INFO embedded 500/500 in 34s (14.76 samples/s, data 10s, model 9s)
+[00:56:53] INFO fold 0: fit segmentation probe in 171s
+[00:57:56] ERROR eval brats_whole_tumor failed
+Traceback (most recent call last):
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/run.py", line 91, in main
+    run_task(model, args.model, name, task_name, subset, cfg)
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/run.py", line 137, in run_task
+    result = PROBES[task.type](model, task, cfg.batch_size, cfg.num_workers)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/probes.py", line 200, in probe_segmentation
+    classifier.fit(
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/logistic.py", line 59, in fit
+    coef, intercept = fit_logistic(
+                      ^^^^^^^^^^^^^
+  File "/home/user/nanobrain/base/.venv/lib/python3.12/site-packages/brainmarks_smri/logistic.py", line 144, in fit_logistic
+    assert n_iter < max_iter, f"l-bfgs used all {max_iter} iterations without converging"
+           ^^^^^^^^^^^^^^^^^
+AssertionError: l-bfgs used all 1000 iterations without converging
+[00:57:57] INFO eval scores
+|                       |   score |    low |   high |   n_samples |

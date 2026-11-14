@@ -1,0 +1,423 @@
+# THE NANOPATH TASK -- a second example (https://github.com/MedARC-AI/nanopath): pathology self-supervised
+# pretraining under a fixed sample / FLOP budget, scored by nanopath's probe panel (6 axes). Selected by
+# `--task tasks/nanopath_v2.yaml`. Machine-specific values come from the environment (${VAR:-default}):
+#   NANOPATH_REPO, NANOPATH_LOOP_HOME, NANOPATH_RUNS_ROOT, NANOPATH_WORKTREES, NANOPATH_PYTHON, NANOPATH_DATABANK,
+#   NANOPATH_SMOKE_DATASET, SLURM_ACCOUNT, SLURM_QOS, SLURM_PARTITION, SLURM_IDLE_ACCOUNT, SLURM_IDLE_QOS.
+# Every knob is documented in loop/spec.py; tasks/_template.yaml and docs/new_task.md explain the layout.
+
+name: nanopath-v2-rescore
+
+adapter: adapters.nanopath:NanopathAdapter
+repo: ${NANOPATH_REPO:-/path/to/nanopath}
+home: ${NANOPATH_LOOP_HOME:-/path/to/nanopath-loop-home}
+
+identity:
+  manifest: MANIFEST.json
+  stop_key: stop
+  phases: [step0_reseed, run_rounds, consolidating]
+  blocking_phases: [reseed, consolidat, step0, reset]
+  output_root: overfitX/batch{cycle:02d}
+  ledger_db: ovx.db
+  journal: sdk_journal_cycle{cycle:02d}.jsonl
+  commit_ledger: commit_ledger.json
+  receipt: receipts/{track}/{lineage_id}/trial{n:02d}/launch_receipt.json
+
+slots:
+  score_key: final_score
+
+  vector:
+    - final_probe_classification_mean_f1
+    - final_probe_seg_mean_f1
+    - final_probe_slide_mean_auc
+    - final_probe_auc_mean
+    - final_probe_survival_mean_cindex
+    - final_probe_robustness_mean
+
+  weights:
+    final_probe_classification_mean_f1: 0.30
+    final_probe_seg_mean_f1: 0.15
+    final_probe_slide_mean_auc: 0.175
+    final_probe_auc_mean: 0.15
+    final_probe_survival_mean_cindex: 0.075
+    final_probe_robustness_mean: 0.15
+
+  metric_tails: [val_f1, val_auc, val_jaccard, val_cindex,
+                 robustness_index, robustness_quality,
+                 biological_balanced_accuracy]
+
+  panel_members_file: ""
+
+surface:
+  writable: [train.py, model.py, dataloader.py, configs/main.yaml]
+  locked:
+    - probe.py
+    - benchmarking/
+    - labless/
+    - submit/
+    - "train.py::calibration_tiles = robust_norm_tiles + len(site_rows)...train_sample_budget = max_train_samples - calibration_tiles"
+    - "train.py::robust_norm_tiles =...del rows, tables, table, order"
+    - "train.py::measured_flops_per_step = None...measured_flops_per_step = None"
+    - "train.py::while examples_seen + batch_size <= train_sample_budget...and train_flops < max_train_flops:"
+    - "train.py::if examples_seen + batch_size > train_sample_budget or train_flops >= max_train_flops:...break"
+    - "train.py::flop_ctx = flop_counter()...with flop_ctx, recompute, torch.compiler.set_stance"
+    - "train.py::flop_counter"
+    - "train.py::RecomputeFlops"
+    - "train.py::if measured_flops_per_step is None:...step_train_flops = measured_flops_per_step"
+    - "train.py::train_flops += step_train_flops...train_flops += step_train_flops"
+
+  protected_keys:
+    - train.max_train_samples
+    - train.max_train_flops
+    - probe
+    - data.split_seed
+    - model.init_from
+    - train.resume
+    - model.pretrained_url
+    - model.timm_name
+    - data.val_fraction
+  cap_ceilings:
+    train.max_train_samples: 1000000
+    train.max_train_flops: 1000000000000000000
+  no_new_top_level_module: true
+
+noise:
+  same_seed_sd: UNMEASURED
+  seed_transfer_sd: 0.00268504
+  replicate_sd: 0.000513077
+
+  floor_sigmas: 1.1764705882352942
+
+  inert_tolerance: 1.0e-4
+
+decision:
+  min_seeds: 2
+  min_members: 2
+  clean_cycles: 2
+  verdict_sigmas: 2.0
+  merge_operator: false
+  screen:
+    seeds: 1
+    keep_by: pareto_per_instance
+    margin_sigmas: 0.0
+  confirm:
+    seeds: 4
+    test: signed_rank
+    top_k: 0
+    seed_key: ""
+
+budget:
+  trials_per_cycle: {train: 60}
+  max_trials_per_lineage: 12
+  full_slots:
+    cap: 8
+    contended: 5
+    adaptive: true
+    external_gate: 24
+  stall:
+    window: 400
+    eps_sigmas: 1.0
+    exclude_infra_voids: true
+  prompt_chars: 600000
+
+caps:
+  infra_retry: 8
+  spec_invalid_kill: 3
+  no_valid_progress: 20
+  defer_attempt: 6
+  void: 3
+  reopen: {max_grants: 2, grant_ttl_h: 1.0, reclaim_cap: 3}
+
+triggers:
+  void_cluster: {min_count: 3, min_fraction: 0.20, min_window: 12, window_h: 24.0}
+
+first_trial_kill:
+  sigmas: -2.0
+  min_valid: 2
+  catastrophic_sigmas: -5.0
+  catastrophic_min_valid: 1
+
+ideation:
+  duplicate_jaccard: 0.5
+  min_motivation_tokens: 8
+
+env_ipc:
+  whitelist: [OVFX_TASK_SPEC, OVFX_TRACK, OVFX_CYCLE, OVFX_BASE_REF,
+              OVFX_BASELINE_DIR, OVFX_PROBE_ONLY, OVFX_RESULT_PATH]
+  strip: [WANDB_MODE, WANDB_DISABLED]
+
+gates:
+  pre_author: [already_at_baseline, knobs_resolve, protected_keys, cap_magnitude]
+  pre_dispatch: [anchors_present, seed_identity, base_identity, duplicate_config,
+                 output_dir, code_liveness, code_efficacy, budget, safe_launch,
+                 protected_keys,
+                 adapters.nanopath.gates:readout_leakage,
+                 adapters.nanopath.gates:surface,
+                 adapters.nanopath.gates:structural_claim]
+  post_smoke: [adapters.nanopath.gates:smoke_assert,
+               adapters.nanopath.gates:mechanism_fired]
+  post_score: [numeric_inertness, first_trial_kill]
+
+eval_gate_axes: [readout_ok, readout]
+
+tracks:
+  train:
+    dispatch: waves
+    wave_size: 8
+    lineage_concurrency: 26
+    max_fix_attempts: 3
+
+llm_roles:
+  researcher: {tier: strong, backend: opus}
+  review: {tier: strong, backend: opus}
+
+publish:
+  adapter_hook: submit
+  max_per_cycle: 2
+
+loop:
+  execution_adapter: loop.adapters.nanopath_v2:NanopathV2Adapter
+  project:
+    name: nanopath
+    base_sha: 065b87f57b9d1ee1fafe8df9fcdc2b0e4b2b5d8f
+    runs_root: ${NANOPATH_RUNS_ROOT:-/path/to/runs}
+    worktrees_root: ${NANOPATH_WORKTREES:-/path/to/worktrees}
+    config_rel: configs/main.yaml
+    aggregation: weighted
+    axes:
+      - {name: cls, key: final_probe_classification_mean_f1, label: classification, weight: 0.30}
+      - {name: seg, key: final_probe_seg_mean_f1, label: segmentation, weight: 0.15}
+      - {name: slide, key: final_probe_slide_mean_auc, label: progression, weight: 0.175}
+      - {name: auc, key: final_probe_auc_mean, label: mutation, weight: 0.15}
+      - {name: surv, key: final_probe_survival_mean_cindex, label: survival, weight: 0.075}
+      - {name: rob, key: final_probe_robustness_mean, label: robustness, weight: 0.15}
+    target: cls
+    guard: [rob]
+    harm_h: {rob: 0.008}
+    axis_exclude: [surv]
+    cell_tau2: mad_minus_mean
+  slurm:
+    time_limit: "05:00:00"
+    smoke_probe: readout
+    resume_tol: 0.001
+    protect_jobs: [qwen-serve-low-pri]
+    pools:
+      - {name: primary, account: "${SLURM_ACCOUNT:-default}", qos: "${SLURM_QOS:-normal}", partition: "${SLURM_PARTITION:-gpu}", slots: 8}
+      - {name: idle, account: "${SLURM_IDLE_ACCOUNT:-default}", qos: "${SLURM_IDLE_QOS:-low}", partition: "${SLURM_PARTITION:-gpu}", slots: 56, preemptible: true}
+  seeds:
+    screen: [11, 12]
+    promote: [13, 15, 16, 17]
+    promote_per_node: 1
+    promote_stage: false
+    confirm_pool: [14, 101, 102, 103, 104]
+    audit: [201, 202, 203, 204]
+    calibration: [11, 12, 13, 14, 101]
+    max_seeds_per_node: 5
+    fresh_base: 100000
+  promotion: {p_promote: 0.6, confirm_max_seeds: 3, alpha_confirm: 0.2, alpha_audit: 0.05, bank_min_seeds: 4, bank_p: 0.8,
+              early_confirm: true, early_confirm_power: 0.2,
+              voi_gain: 0.0007}
+  veto: {harm_sigmas: 1.0, prob: 0.8, catastrophic_sigmas: 4.0}
+  operator_focus: >-
+    Think from first principles: state a mechanistic model of why the incumbent behaves as it does, find the
+    binding constraint, derive the change from it, name the measured quantity it should move, and explain why
+    earlier attempts on it failed. Challenge any assumption of the base recipe, the model init and architecture
+    included (another pretrained model, size, architecture or a random init is an init swap; the recipe's
+    hyperparameters were set for the current init). Research first and cite it. Hard constraints are unchanged:
+    locked eval/probe code, the fixed 1M-sample / 1e18-FLOP budget (a run must reach the sample budget within the
+    FLOP cap), TCGA-only training data, no pathology-trained or GenBio checkpoint may initialise or guide the
+    model, and a change that keeps the current init keeps init-compatibility with its pretrained checkpoint.
+  idea_banks: []
+  data_bank:
+    - "DATA EXTRACTION / CURATION IS AN OPEN LEVER: a finish (or an idea plan) may carry a dataset_spec (schema in the finish tool: tile size, magnification / mpp mix, sampling, tissue filter, an offline curation-score filter) to build a new dataset from the raw TCGA WSIs (scripts/retile, same Arrow format); the loop builds it (one at a time, disk-capped) and lists it here when ready; point data.dataset_dir at /data/nanopath-databank/<name> in the same change to train on it (the node waits until it is ready). TCGA WSIs only; a pathology model may only compute offline curation scores (never initialise or guide the model); GenBio data / models are banned; caps unchanged (one tile = one sample)"
+  databank:
+    enabled: true
+    root: ${NANOPATH_DATABANK:-/data/nanopath-databank}
+    python: ${NANOPATH_PYTHON:-/path/to/nanopath/.venv/bin/python}
+    smoke_dataset: ${NANOPATH_SMOKE_DATASET:-/data/nanopath_arrow}
+    max_building: 1
+    max_total_tb: 2.5
+    min_free_tb: 1.5
+    retain_days: 14
+    adopt: [mixed_448]
+    num_workers: 12
+    adopt_space:
+      - {key: "data.global_crop_scale[0]", low: 0.1, high: 0.5, scale: log}
+      - {key: train.global_size, low: 196, high: 336, scale: linear}
+      - {key: "data.local_crop_scale[1]", low: 0.1, high: 0.5, scale: log}
+      - {key: dino.lr, factor: 2.0, scale: log}
+    note: >-
+      Larger tiles: train.global_size / local_size and data.*_crop_scale decide what a crop sees (RandomResizedCrop of
+      the whole tile, resized), so a crop scale tuned for 224 px tiles sees a lower magnification here. The loader
+      reads ~430 samples/s cold at 448 px with 8 workers vs ~385/s training demand: set train.num_workers 12-16
+      (jobs have 16 CPUs)
+  ideation: {axis_tasks: {cls: probe.datasets, seg: probe.segmentation_datasets, slide: probe.slide_datasets,
+                          auc: probe.auc_datasets, surv: probe.survival_datasets, rob: probe.robustness_datasets},
+             diagnose_precompute: true,
+             base_share: 0.2, share_window: 40, max_share: 0.35, min_ideas: 3, max_ideas: 5,
+             implement_top: 2, max_variants: 4,
+             struct_tune_knobs: {
+               backbone: {grid: [{key: dino.lr, factor: 2.0, scale: log},
+                                 {key: dino.layerwise_decay, step: 0.15, lo: 0.5, hi: 1.0, scale: lin}],
+                          extra: [{key: dino.warmup_fraction, factor: 2.0, scale: log}]},
+               loss: {dose_rx: '(weight|coef|lambda|gamma)$', factors: [0.3, 3.0, 0.1, 0.03, 10.0]},
+               other: {dose_rx: '.', factors: [0.3, 3.0, 0.1, 0.03, 10.0],
+                       fallback: {grid: [{key: dino.lr, factor: 2.0, scale: log},
+                                         {key: dino.layerwise_decay, step: 0.15, lo: 0.5, hi: 1.0, scale: lin}],
+                                  extra: [{key: dino.warmup_fraction, factor: 2.0, scale: log}]}}},
+             external_csv: benchmarking/proxy_fidelity_v2.csv,
+             external_task_csv: "",
+             operator_findings: [],
+             operator_programs: [],
+             struct_retro_nodes: []}
+  intake: {compound_min_p: 0.8,
+           lever_groups: {
+             dataset: [data.dataset_dir, data.tissue_thresh, data.mean, data.std],
+             resolution: [train.global_size, train.local_size],
+             views: [train.global_views, train.local_views],
+             crops: [data.global_crop_scale, data.local_crop_scale],
+             color_aug: ["data.color_jitter*", data.hed_jitter, "data.aug_*", train.gpu_augment],
+             optimizer: [dino.lr, dino.lr_min, dino.adam_beta2, dino.warmup_fraction, dino.freeze_last_layer_fraction,
+                         dino.layerwise_decay, dino.patch_embed_lr_mult, dino.clip_grad, train.batch_size],
+             regularization: [dino.drop_path_rate],
+             objective: [dino.kde_loss_weight, dino.kde_concentration, "dino.jepa_*", "fino.*"],
+             architecture: ["model.*", dino.head_hidden_dim, dino.head_bottleneck_dim]},
+           mixed_change: split, split_screen_seeds: 2}
+  researcher: {max_concurrent: 4, moonshot_max_turns: 110, moonshot_timeout_min: 80, min_papers: 5,
+               min_new_papers: 2, min_searches: 2, distant_share: 0.3}
+  design: {lever_p: 0.8}
+  extrapolate: {enabled: true, max_inflight: 4, min_z: 2.0, partner_z: 1.5,
+                knobs: [{key: "*.lr", scale: log}, {key: "*.lr_min", scale: log}, {key: "*lr_mult", scale: log, high: 1.0},
+                        {key: "*layerwise_decay", scale: linear, low: 0.3, high: 1.0},
+                        {key: "*warmup_fraction", scale: log, high: 0.5}, {key: "*weight_decay*", scale: log},
+                        {key: train.global_size, scale: linear, low: 112, high: 336},
+                        {key: "data.*hue*", scale: linear, low: 0.0, high: 0.5},
+                        {key: "data.*jitter*", scale: linear, low: 0.0, high: 1.0},
+                        {key: "*jepa_block_scale", scale: linear, low: 0.01, high: 1.0},
+                        {key: "fino.gamma_max", scale: linear, low: 0.0, high: 1.0}]}
+  components: {ablation_rate: 0.15, min_ablated: 30}
+  novelty: {sweep_redirect: true, weight: 0.5, major_ratio: 2.0,
+            dead_extra: ["optimizer swaps (Muon / Lion / AdEMAMix / SAM)",
+                         "stain augmentations (HED / colour / stain jitter strength or new stain-augment schemes)"]}
+  status:
+    share_min_n: 3
+    outlier_z: 1.8
+    outlier_sd_d: 0.0034
+  labless:
+    enabled: true
+    min_hours_between: 0
+    max_per_day: 10
+    exploratory: true
+    group_max_age_h: 48
+    sibling_gain: 0.0081
+    recorded: {}
+    bar_node: ""
+    leader_median: 0.6810443
+    promote_margin: 0.004
+    promote_p: 0.7
+    offset: 0.0
+    min_test_seeds: 4
+    sigma_prior_df: 8.0
+  evalonly: {enabled: true, max_share: 0.05, screen_ckpts: 3, confirm_ckpts: 2, min_models: 2,
+             train_spans: ["model.py::ViT.forward", "model.py::ViT._forward_tokens"], readout_keys: true,
+             harm_tol: {slide: 0.005, rob: 0.003}, harm_prob: 0.8, source_wait_s: 7200, noise_min_df: 4,
+             sigma_floor: 0.0005, null_tol: 0.0001}
+  prune: {enabled: true, dry_run: false, every_min: 60, grace_h: 24, reserve_per_model: 5}
+  diagnostics:
+    enabled: true
+    python: ${NANOPATH_PYTHON:-/path/to/nanopath/.venv/bin/python}
+    init: ~/.cache/torch/hub/checkpoints/dinov2_vits14_reg4_pretrain.pth
+    threads: 4
+    pending_h: 2.0
+  factorial:
+    flag_knobs:
+      lr_throttled: [{key: dino.layerwise_decay, lo: 0.8, hi: 0.9, scale: lin},
+                     {key: dino.patch_embed_lr_mult, lo: 0.2, hi: 0.4, scale: log}]
+      update_starved: [{key: dino.lr, lo: 2.344e-4, hi: 3.5e-4, scale: log}]
+      clip_dominated: [{key: dino.clip_grad, factor: 3, scale: log}]
+  pairs: {parent_tol: 0.004, axis_leg_tol: 0.002}
+  prior: {tau0: 0.005, tau_floor: 0.0005, tau_max: 0.05}
+  acquire: {stack_intercept: 0.0013}
+  test: {local_reroot_min_gain: 0.002}
+  holdout: {enabled: true}
+  panel_sd: 0.00325708
+  axis_sd:
+    final_probe_classification_mean_f1: 0.00455671
+    final_probe_seg_mean_f1: 0.00427597
+    final_probe_slide_mean_auc: 0.00938486
+    final_probe_auc_mean: 0.01181299
+    final_probe_survival_mean_cindex: 0.01867639
+    final_probe_robustness_mean: 0.00371029
+  families:
+    optimization:
+      keys: [dino.lr, dino.lr_min, dino.adam_beta2, dino.warmup_fraction,
+             dino.freeze_last_layer_fraction, dino.layerwise_decay,
+             dino.patch_embed_lr_mult, dino.clip_grad, train.batch_size, "dino.schedule_*"]
+    regularization:
+      keys: [dino.drop_path_rate, "dino.weight_decay*"]
+    augmentation:
+      keys: [data.global_crop_scale, data.local_crop_scale, data.color_jitter,
+             data.color_jitter_saturation, data.hed_jitter, "data.aug_*",
+             train.global_views, train.local_views, train.global_size, train.local_size,
+             train.gpu_augment]
+      paths: [dataloader.py]
+    architecture:
+      keys: ["model.*", dino.head_hidden_dim, dino.head_bottleneck_dim]
+      paths: [model.py]
+      init_check: true
+    objective:
+      keys: [dino.kde_loss_weight, dino.kde_concentration, "dino.jepa_*", "fino.*"]
+    training:
+      keys: [train.bf16, train.activation_checkpointing, train.compile, train.fused_adamw,
+             train.num_workers, train.prefetch_factor, train.persistent_workers,
+             train.log_every, train.save_every, train.eval_every, train.val_batches,
+             train.resume]
+      paths: [train.py]
+      init_check: true
+    data_curation:
+      keys: [data.dataset_dir, data.tissue_thresh, data.mean, data.std]
+    eval_readout:
+      paths: [model.py::ViT.forward, model.py::ViT._forward_tokens, model.py::ViT.encode_image,
+              model.py::ViT.probe_features, model.py::ViT._suppress,
+              "train.py::# Fit scanner-response directions...model.ct_ms.copy_"]
+      init_check: true
+      combine: true
+      forbid:
+        - 'os\.environ|getenv|\bglob\b|listdir|scandir|os\.walk|[''"]/data\b|\bPath\s*\('
+        - 'DataLoader|Dataset\b|dataset_dir|\bpa\.|pyarrow|memory_map|read_all|open_file|\.arrow\b|parquet|fino_meta'
+        - '(?<![\w.])open\s*\(|np\.load|torch\.load|read_bytes|read_text|train_loader|val_loader|\bbatch\s*\['
+        - '\b(rows|tables|table|order|selected|offsets)\b|robust_norm_tiles\s*=|\b(jpegs|site_rows)\s*(\+?=|\.(append|extend|insert))'
+  forbid:
+    - 'benchmarking|labless|thunder'
+    - '\bprobe\.py\b|\b(from|import)\s+probe\b'
+    - '[''"]probe[''"]|\w*probe(?!_features\b|_transforms\b)\w|dataset_roots|(segmentation|slide|auc|survival|robustness)_datasets'
+    - 'run_probe_at|log_probe_results|probe_results|final_probe|summary\.json'
+    - '\blabels?\.(csv|tsv|json|npy|npz|pt|pkl|parquet|txt)\b|\b(label|target|class)_col'
+    - '[''"](labels?|targets?|class_?labels?|class_name|annotations?|y)[''"]'
+    - '_getframe|f_locals|f_globals|f_back|\binspect\b|\bgc\.|sys\.modules|(?<!== [''"])__main__|\bbuiltins\b|__import__|importlib'
+    - 'label_of|\.(labels?|targets?)\b'
+  forbid_config: ["configs/main.yaml:probe"]
+  init_compat:
+    paths: [model.py, train.py]
+    deny:
+      - 'h[-_ ]?optimus|bioptimus|\bh0[-_]?mini\b'
+      - 'openmidnight|\bmidnight\b|kaiko'
+      - 'path[-_]?fm'
+      - 'phikon'
+      - 'virchow|paige[-_]?ai'
+      - '(?-i:\bUNI(?:[-_]?2(?:[-_]h)?)?\b)|mahmoodlab'
+      - 'gigapath'
+      - '\bconch(?:[-_]?v?\d|\b)|\btitan\b'
+      - 'hibou|histai'
+      - 'ctranspath|retccl|\blunit\b'
+      - 'genbio'
+      - 'plip|quilt|\bmusk\b|\batlas\b|hipt|pathdino|dino.*patholog|biomedclip|prov-gigapath'
+    allow:
+      - '^(?:hf-hub:)?(?:timm/)?vit_(?:small|small_plus|base)_patch16_dinov3\.lvd1689m$'
+      - '^https://dl\.fbaipublicfiles\.com/dinov2/dinov2_vit[sb]14/dinov2_vit[sb]14(?:_reg4)?_pretrain\.pth$'
+      - '^(?:hf-hub:)?(?:timm/)?(?:eva02_(?:small|base)_patch14_224\.mim_in22k|vit_base_patch16_siglip_224\.v2_webli)$'
+    allow_types:
+      - '^(?:robust_norm_)?dinov2_vit[sb]14(?:_reg)?$'
+      - '^(?:robust_norm_)?dinov3_vit(?:s16(?:plus)?|sp16|splus16|s_plus16|b16)$'
+      - '^timm:(?:eva02_(?:small|base)_patch14_224\.mim_in22k|vit_base_patch16_siglip_224\.v2_webli)$'
+    flop_cap: 0.97
+    references: []

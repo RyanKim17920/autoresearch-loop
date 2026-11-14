@@ -1,0 +1,53 @@
+Optional per-block training-time diagnostics for nanopath train.py (NOT applied; documented here).
+
+With `train.diag_every: N` (N a multiple of train.log_every; absent / 0 = off), every Nth logged step snapshots each
+backbone block's 2-D weight matrices before `opt.step()`, and writes into that step's metrics.jsonl train record:
+  diag_b{i}_grms  RMS of the (post-clip) gradient over block i's matrices
+  diag_b{i}_upd   relative update ||W_after - W_before|| / ||W_before|| of the step just taken
+(update/weight ratio; the same quantity loop/diag_ckpt.py estimates after the fact from the AdamW state). Cost: one
+clone of the 12 blocks' matrices (~85 MB at ViT-S) on those steps only. Check:
+  git -C <nanopath base> apply --check loop/patches/train_update_logging.patch
+
+diff --git a/train.py b/train.py
+--- a/train.py
++++ b/train.py
+@@ -636,6 +636,8 @@
+             student_predictor.train()
+             completed_step = step + 1
+             should_log = completed_step == 1 or completed_step % train_cfg["log_every"] == 0
++            diag_every = int(train_cfg.get("diag_every", 0))  # 0 = off; a multiple of log_every
++            diag_now = False
+             # Data identifiers stay on CPU and feed coverage metrics; image tensors move below.
+             for key, batch_key in (("sample", "sample_idx"), ("slide", "slide_id"), ("patient", "patient_id")):
+                 pending_ids[key].update(int(x) for x in batch[batch_key].tolist())
+@@ -682,7 +684,21 @@
+                     [*student_backbone.parameters(), *student_dino_head.parameters(), *student_predictor.parameters()],
+                     dino_cfg["clip_grad"],
+                 )
++                diag_now = should_log and diag_every > 0 and completed_step % diag_every == 0
++                if diag_now:  # pre-step snapshot of every block's matrices + their grad RMS (post-clip)
++                    diag_mats = [[p for p in blk.parameters() if p.ndim == 2] for blk in student_backbone.blocks]
++                    diag_w0 = [[p.detach().clone() for p in ps] for ps in diag_mats]
++                    diag_grms = [math.sqrt(sum(float(p.grad.float().pow(2).sum()) for p in ps if p.grad is not None)
++                                           / max(1, sum(p.numel() for p in ps))) for ps in diag_mats]
+                 opt.step()
++                if diag_now:  # relative update ||dW||/||W|| of the step just taken, per block
++                    diag_stats = {}
++                    for i, (ps, w0s) in enumerate(zip(diag_mats, diag_w0)):
++                        dn = sum(float((p.detach() - w).float().pow(2).sum()) for p, w in zip(ps, w0s))
++                        wn = sum(float(w.float().pow(2).sum()) for w in w0s)
++                        diag_stats[f"diag_b{i}_grms"] = diag_grms[i]
++                        diag_stats[f"diag_b{i}_upd"] = math.sqrt(dn / max(wn, 1e-30))
++                    del diag_mats, diag_w0
+             if measured_flops_per_step is None:
+                 measured_flops_per_step = int(flop_ctx.get_total_flops())
+                 print(f"{console_prefix()} measured_flops_per_step: {measured_flops_per_step:,}", flush=True)
+@@ -752,6 +768,8 @@
+                     "grad_norm": float(grad_norm.detach()),
+                 }
+                 train_log.update(unique_counts)
++                if diag_now:
++                    train_log.update(diag_stats)
+                 print(
+                     f"{console_prefix()} Training  "
+                     f"[{completed_step}/{total_steps_estimate}]  eta: {eta_string}  gap: {console_gap_ms:.2f} ms  "

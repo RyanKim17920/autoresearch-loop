@@ -1,0 +1,446 @@
+# Example operator-seeded programs (loop.ideation.operator_programs) exercising the program machinery in tests:
+# staged arms, harm guards, ported code arms with tuning points, after_done ordering.
+- id: op-gate-x-globals
+  budget_gpu_h: 30
+  harm_guards:
+  - rob
+  - slide
+  brief: 'Operator-seeded program: the incumbent''s probe_features typicality gate shrinks features on some classification
+    sets, and the global / local crop counts trade classification against robustness. Test the gate arms eval-only first,
+    then the crop-count and CLS-norm arms as full retrains, each arm its own node on the incumbent, decided on its OWN paired
+    increment.'
+  components:
+  - 'typicality-gate arms (eval_readout, stage A, eval-only, built by the loop): gate off | gate floor 0.5 (the old 0.5+0.5
+    sigma form) -- literal edits inside probe_features only'
+  - 'CLS norm matched to the TCGA reference (stage B, FULL RETRAIN: it needs a new ct_* buffer fitted in train.py, so it is
+    not eval-only)'
+  - 'crop counts (augmentation / compute, stage B, full retrain): 4 global crops x local crops {8, 10, 14} with schedule_clock
+    sample_ref, warmup ~.076, lr ~2.1-2.6e-4'
+  - 'high-resolution leg (compute, stage C): the 252-px global / 20% hires leg of a prior node'
+  stages:
+  - '(A) eval-only gate arms on the incumbent, each its own node (the loop builds them; no config change, edits inside probe_features
+    only): gate off; gate floor 0.5'
+  - '(B) FULL RETRAIN on the incumbent: 4 global crops x local crops {8, 10, 14} with schedule_clock sample_ref, warmup ~.076,
+    lr ~2.1-2.6e-4; the CLS-norm-matched arm (a new ct_* buffer fitted in train.py) is a stage-B full-retrain arm too'
+  - (C) add the 252-px global / 20% hires leg (a prior node) on the best arm
+  arms:
+  - id: gate_off
+    stage: A
+    lane: evalonly
+    family: eval_readout
+    file: model.py
+    span: model.py::ViT.probe_features
+    note: 'typicality gate off: CLS taps pass ungated (the gate is still computed, not applied)'
+    edits:
+    - old: cls = self.rn_mu[0] + gate[:, None] * (cls - self.rn_mu[0])
+      new: cls = self.rn_mu[0] + (cls - self.rn_mu[0])
+    opposite:
+      id: gate_strong
+      note: 'typicality gate applied twice (gate^2): atypical CLS taps shrink harder toward the reference mean'
+      edits:
+      - old: cls = self.rn_mu[0] + gate[:, None] * (cls - self.rn_mu[0])
+        new: cls = self.rn_mu[0] + gate[:, None] ** 2 * (cls - self.rn_mu[0])
+  - id: gate_floor
+    stage: A
+    lane: evalonly
+    family: eval_readout
+    file: model.py
+    span: model.py::ViT.probe_features
+    note: typicality gate floored at 0.5 (the old 0.5 + 0.5 sigmoid form)
+    edits:
+    - old: gate = torch.sigmoid(((typicality - self.ct_ms[0]) / self.ct_ms[1]).clamp(-30, 30))
+      new: gate = 0.5 + 0.5 * torch.sigmoid(((typicality - self.ct_ms[0]) / self.ct_ms[1]).clamp(-30, 30))
+    opposite:
+      id: gate_sharp
+      note: typicality gate sharpened (sigmoid temperature halved)
+      edits:
+      - old: gate = torch.sigmoid(((typicality - self.ct_ms[0]) / self.ct_ms[1]).clamp(-30, 30))
+        new: gate = torch.sigmoid((2.0 * (typicality - self.ct_ms[0]) / self.ct_ms[1]).clamp(-30, 30))
+  - id: cls_norm_matched
+    stage: B
+    lane: full
+    family: eval_readout
+    note: 'gate off + CLS norm matched to the TCGA reference: needs a ct_* buffer fit in train.py (a training-path change),
+      so a full-retrain arm of the program session, never eval-only'
+- id: op-dino-forcing
+  budget_gpu_h: 40
+  harm_guards:
+  - rob
+  - slide
+  superseded_by: op-dino-forcing-v2
+  brief: 'Operator-seeded program (SUPERSEDED by op-dino-forcing-v2): frozen-init feature alignment (Arm A) and two-pass self-conditioning
+    (Arm B), from the DINO-forcing literature. Two separate arms, each its own node on the incumbent and decided on its OWN
+    paired increment; a stacked node only after BOTH screen positive. Do not touch the locked eval files, the locked train.py
+    FLOP-accounting spans or the caps.'
+  components:
+  - 'Arm A, frozen-init feature alignment (FULL RETRAIN, a loss addition): a frozen no-grad deepcopy of the student''s own
+    initial weights (deep-copied at init, before training; no second load); add a cosine-alignment loss between the student''s
+    final-block patch tokens + CLS and the frozen copy''s, on global crops. Weight knob dino.init_align_weight, ladder {0.05,
+    0.1, 0.25, 0.5} (4 doses)'
+  - 'Arm A layer (FULL RETRAIN, second component): dino.init_align_layer, last block (default) vs a mid block (e.g. 6); the
+    paper''s deepest-layer finding predicts last >= mid'
+  - 'Arm B, two-pass self-conditioning (FULL RETRAIN, code edit): the student first runs a no-grad pass that predicts its
+    own features (its output tokens / teacher-target prediction); the second (main) pass is conditioned on that prediction
+    through a ZERO-INITIALISED projection added to the token embeddings at an early block, so step 0 is an identity. Pass-1
+    dropout dino.selfcond_drop (default 0.1): when it drops, the conditioning is zeros. Ladder selfcond_drop {0.1, 0.2, 0.5}.
+    Pass 1 also runs on step 1 so the locked step-1 FLOP measurement and per-step cost stay constant'
+  - 'Arm B injection depth (FULL RETRAIN, second component): the block that receives the conditioning, block 0 vs block 4'
+  stages:
+  - '(A) Arm A on the incumbent, its own node(s): dino.init_align_weight ladder {0.05, 0.1, 0.25, 0.5} at the last block,
+    then dino.init_align_layer last vs mid (6)'
+  - '(B) Arm B on the incumbent, its own node(s) separate from Arm A: dino.selfcond_drop ladder {0.1, 0.2, 0.5}, then injection
+    depth block 0 vs 4'
+  - '(C) only after BOTH arms screen positive: one stacked A+B node on the incumbent'
+  arms:
+  - id: init_align
+    stage: A
+    lane: full
+    family: objective
+    note: 'frozen-init feature alignment: cosine loss to a deepcopy-at-init frozen copy of the student (final-block patch
+      tokens + CLS, global crops); dino.init_align_weight, dino.init_align_layer; a training-path change, so a full-retrain
+      arm of the program session, never eval-only'
+  - id: self_cond
+    stage: B
+    lane: full
+    family: objective
+    note: 'two-pass self-conditioning: no-grad pass 1 (also on step 1) predicts the student''s features, pass 2 is conditioned
+      via a zero-init projection at an early block; dino.selfcond_drop (default 0.1); a training-path change, so a full-retrain
+      arm of the program session, never eval-only'
+- id: op-dino-forcing-v2
+  budget_gpu_h: 60
+  harm_guards:
+  - rob
+  - slide
+  brief: 'Operator-seeded program: the in-depth re-run of op-dino-forcing with EVERY ARM AS ITS OWN NODE on the incumbent,
+    so the effect of each arm is measured separately instead of bundled into one node. Do not touch the locked eval files,
+    the locked train.py FLOP-accounting spans or the caps.'
+  stages:
+  - '(A) A1 and A2, each its own node: frozen-init cosine alignment at the last block / at block 6, dino.init_align_weight
+    ladder {0.05, 0.1, 0.25, 0.5}'
+  - '(B) B1 and B2, each its own node: two-pass self-conditioning injected at block 0 / at block 4, dino.selfcond_drop ladder
+    {0.1, 0.2, 0.5}'
+  - (C) one stacked node of ONLY the arms that screened positive on their own paired increment
+  arms:
+  - id: A1
+    stage: A
+    lane: full
+    family: objective
+    keys:
+    - init_align
+    note: 'frozen-init feature alignment at the LAST block: a no-grad copy.deepcopy of the student taken at init (in memory;
+      NO new weights loaded), plus a cosine-alignment loss between the student''s final-block patch tokens + CLS and the frozen
+      copy''s, on global crops. Knobs dino.init_align_weight (default 0.1) and dino.init_align_layer (set to the last block)'
+    components:
+    - 'init-align weight: dino.init_align_weight, knob {key: dino.init_align_weight, lo: 0.05, hi: 0.5, scale: log}, doses
+      {0.05, 0.1, 0.25, 0.5}'
+    ladder: dino.init_align_weight {0.05, 0.1, 0.25, 0.5} at the last block
+  - id: A2
+    stage: A
+    lane: full
+    family: objective
+    keys:
+    - init_align
+    note: 'frozen-init feature alignment at block 6: the same loss as A1 (deepcopy-at-init frozen copy, NO new weights loaded;
+      cosine on patch tokens + CLS of global crops) but taken at the MID block 6 instead of the last. Knobs dino.init_align_weight
+      (default 0.1), dino.init_align_layer = 6'
+    components:
+    - 'init-align weight at block 6: knob {key: dino.init_align_weight, lo: 0.05, hi: 0.5, scale: log}, doses {0.05, 0.1,
+      0.25, 0.5}'
+    ladder: dino.init_align_weight {0.05, 0.1, 0.25, 0.5} at block 6
+  - id: B1
+    stage: B
+    lane: full
+    family: objective
+    keys:
+    - selfcond
+    note: 'two-pass self-conditioning injected at BLOCK 0: a no-grad pass 1 (run on EVERY step from step 1) predicts the student''s
+      own features; pass 2 is conditioned on that prediction through a ZERO-INITIALISED projection added to the token embeddings
+      entering block 0, so step 0 is an identity. Pass-1 dropout dino.selfcond_drop (default 0.1): when it drops, the conditioning
+      is zeros. Knobs dino.selfcond_drop, dino.selfcond_block = 0'
+    components:
+    - 'pass-1 dropout: knob {key: dino.selfcond_drop, lo: 0.1, hi: 0.5, scale: log}, doses {0.1, 0.2, 0.5}'
+    ladder: dino.selfcond_drop {0.1, 0.2, 0.5} at block 0
+  - id: B2
+    stage: B
+    lane: full
+    family: objective
+    keys:
+    - selfcond
+    note: 'two-pass self-conditioning injected at BLOCK 4: the same mechanism as B1 (no-grad pass 1 from step 1, zero-initialised
+      projection, pass-1 dropout dino.selfcond_drop) but the conditioning is added to the tokens entering block 4. Knobs dino.selfcond_drop,
+      dino.selfcond_block = 4'
+    components:
+    - 'pass-1 dropout at block 4: knob {key: dino.selfcond_drop, lo: 0.1, hi: 0.5, scale: log}, doses {0.1, 0.2, 0.5}'
+    ladder: dino.selfcond_drop {0.1, 0.2, 0.5} at block 4
+  - id: stack
+    stage: C
+    lane: full
+    family: objective
+    stack: true
+    after:
+    - A1
+    - A2
+    - B1
+    - B2
+    note: stack ONLY the arms among A1/A2/B1/B2 whose own node screened positive on its own paired increment (at most one
+      of A1/A2 and one of B1/B2, the better of each pair), at their best laddered doses; nothing from an arm that did not
+      screen positive
+    components:
+    - the stacked arms' knobs, each at its best measured dose
+- id: op-sampler-flatten
+  budget_gpu_h: 40
+  harm_guards:
+  - cls
+  - seg
+  brief: 'Operator-seeded program: the patient-volume sampler (weight cap*tanh(count/cap) per patient) is MEASURED EXHAUSTED
+    at the patient level, so the next levels are the tissue-source site and the TCGA PROJECT (cancer type). Each arm is its
+    own node on the incumbent and decided on its OWN paired increment; a stacked node is allowed only after BOTH screen positive.'
+  components:
+  - 'Arm B, site-level cap (FULL RETRAIN, code edit): an analogous cap*tanh(count/cap) weight over TCGA tissue-source-site
+    (TSS, the 2nd field of the patient barcode) counts, applied ON TOP of the patient cap; the cap quantile is a new knob
+    (start with the 0.9 quantile of tiles per site). Implementing the site sampler is the researcher''s job'
+  - 'Arm D, cancer-type (TCGA project) cap (FULL RETRAIN, code edit): the same cap*tanh(count/cap) weight over tiles per TCGA
+    PROJECT (cancer type, e.g. BRCA / LUAD) on top of the patient cap, so a few huge cohorts stop dominating the draw; new
+    knob for the cap quantile (start 0.9). The project comes from the dataset metadata if the Arrow rows carry it, else from
+    the TSS-to-project table; resolving it is the researcher''s job. Optionally a project-uniform limit as a second dose'
+  stages:
+  - '(B) Arm B on the incumbent, its own node(s): site-level cap on top of the patient cap'
+  - '(D) Arm D on the incumbent, its own node(s) separate from Arm B: cancer-type (project) cap on top of the patient cap'
+  - '(E) only after BOTH arms screen positive: one stacked node (patient cap + site cap + project cap)'
+  arms:
+  - id: site_cap
+    stage: B
+    lane: full
+    family: data
+    note: site-level (TCGA tissue-source-site) cap*tanh(count/cap) on top of the patient cap; a sampler code change, so a
+      full-retrain arm of the program session, never eval-only
+  - id: project_cap
+    stage: D
+    lane: full
+    family: data
+    note: cancer-type (TCGA project) cap*tanh(count/cap) on top of the patient cap; a sampler code change, so a full-retrain
+      arm of the program session, never eval-only. Arms A (patient quantile ladder) and C (patient-uniform) were measured
+      null by the operator  and are removed
+- id: op-arch-core
+  sessions: false
+  budget_gpu_h: 180
+  harm_guards:
+  - rob
+  - slide
+  brief: 'Operator architecture program, core arms (plus port_id, the identity-port control: same ported code on the incumbent
+    backbone): DINOv3 ViT-S/16, S+/16, B/16 and DINOv2 reg ViT-B/14 on the incumbent recipe. Prebuilt port; each arm is tuned
+    (lr / layer decay / warmup points) before it is judged.'
+  arms:
+  - id: port_id
+    lane: ported
+    family: architecture
+    stage: A
+    note: 'IDENTITY PORT CONTROL: the ported model.py + train.py on the incumbent''s own backbone (model.type unchanged),
+      so port effects separate from architecture effects'
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: robust_norm_dinov2_vits14_reg
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.lr: 0.0004688
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.warmup_fraction: 0.1818
+  - id: v3_s16
+    lane: ported
+    family: architecture
+    stage: A
+    note: DINOv3 ViT-S/16
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: dinov3_vits16
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.lr: 0.0004688
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.warmup_fraction: 0.1818
+  - id: v3_sp16
+    lane: ported
+    family: architecture
+    stage: A
+    note: DINOv3 ViT-S+/16
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: dinov3_vits16plus
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.lr: 0.0004688
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.warmup_fraction: 0.1818
+  - id: v3_b16
+    lane: ported
+    family: architecture
+    stage: B
+    note: DINOv3 ViT-B/16
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: dinov3_vitb16
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.lr: 5.86e-05
+      - dino.lr: 0.0001172
+        dino.warmup_fraction: 0.1818
+  - id: v2_b14
+    lane: ported
+    family: architecture
+    stage: B
+    note: DINOv2 reg ViT-B/14
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: robust_norm_dinov2_vitb14_reg
+      train.local_size: 98
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.lr: 5.86e-05
+      - dino.lr: 0.0001172
+        dino.warmup_fraction: 0.1818
+- id: op-arch-explore
+  sessions: false
+  budget_gpu_h: 90
+  harm_guards:
+  - rob
+  - slide
+  brief: 'Operator architecture program, exploratory arms: generic timm trunks EVA02-S/14, EVA02-B/14, SigLIP2-B/16 (allowlisted
+    generic weights). Prebuilt port; tuned like the core arms; each arm is built only after the core arms are done.'
+  arms:
+  - id: eva02_s14
+    lane: ported
+    after_done:
+    - v3_s16
+    - v3_sp16
+    - port_id
+    family: architecture
+    stage: A
+    note: EVA02-S/14 (timm)
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: timm:eva02_small_patch14_224.mim_in22k
+      train.local_size: 126
+      data.mean:
+      - 0.48145466
+      - 0.4578275
+      - 0.40821073
+      data.std:
+      - 0.26862954
+      - 0.26130258
+      - 0.27577711
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.lr: 0.0004688
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.warmup_fraction: 0.1818
+  - id: eva02_b14
+    lane: ported
+    after_done:
+    - v3_s16
+    - v3_sp16
+    - port_id
+    family: architecture
+    stage: B
+    note: EVA02-B/14 (timm)
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: timm:eva02_base_patch14_224.mim_in22k
+      train.local_size: 98
+      data.mean:
+      - 0.48145466
+      - 0.4578275
+      - 0.40821073
+      data.std:
+      - 0.26862954
+      - 0.26130258
+      - 0.27577711
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.lr: 5.86e-05
+      - dino.lr: 0.0001172
+        dino.warmup_fraction: 0.1818
+  - id: siglip2_b16
+    lane: ported
+    after_done:
+    - v3_s16
+    - v3_sp16
+    - port_id
+    family: architecture
+    stage: B
+    note: SigLIP2-B/16 (timm)
+    code_ref: 3bb414c306dce4420bb1881f0334f97eebd5287b
+    code_base: ae14f8a4704eeee999f5833f210ee26c2e0d958f
+    code_files:
+    - model.py
+    - train.py
+    config:
+      model.type: timm:vit_base_patch16_siglip_224.v2_webli
+      data.mean:
+      - 0.5
+      - 0.5
+      - 0.5
+      data.std:
+      - 0.5
+      - 0.5
+      - 0.5
+    tune:
+      points:
+      - dino.lr: 0.0001172
+      - dino.layerwise_decay: 0.65
+      - dino.lr: 0.0001172
+        dino.layerwise_decay: 0.65
+      - dino.lr: 5.86e-05
+      - dino.lr: 0.0001172
+        dino.warmup_fraction: 0.1818

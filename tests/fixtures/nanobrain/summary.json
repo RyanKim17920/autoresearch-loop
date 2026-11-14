@@ -1,0 +1,23 @@
+{
+  "step": 1486,
+  "images": 47552,
+  "epochs": 0.5483837486882013,
+  "train_flops": 72822287195176960,
+  "wall_seconds": 307.2597806798294,
+  "start_step": 0,
+  "done": true,
+  "stopped_by_signal": false,
+  "final_loss": 0.5417370796203613,
+  "num_params": 98817280,
+  "peak_memory_gb": 33.881857536,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "cpus": 16,
+  "torch": "2.14.0+cu130",
+  "cuda": "13.0",
+  "git": {
+    "sha": "440fc92a0f949c5874db64ec6491f397bcbda37c",
+    "branch": "main",
+    "dirty": false,
+    "remote": "https://github.com/MedARC-AI/nanobrain"
+  }
+}

@@ -1,0 +1,50 @@
+nanobrain_job: mode=smoke (known-good smoke of 2026-11-08 req-v3-00004: 696 steps to done; step 0 prints non-finite throughput meters)
+  (decoder_head): NativeHead(in_features=512, out_features=512, bias=True)
+)
+[07:29:18] num params: 104.3M
+[07:29:19] flops per batch per gpu (fwd + bwd): 27.49 TFLOP
+[07:29:20] total batch size: 64 = 32 images x 2 samples x 1 accum x 1 gpus
+[07:29:20] lr: 5.00e-04 = 2.00e-03 x 64 / 256
+[07:29:20] muon params: 96 matrices
+[07:29:22] train dataset: 253418 images
+[07:29:22] 3.5 epochs of 7919.3 steps
+[07:29:22] lr schedule: time keyed, warmup = 0 steps, decay over the last 20% of training time, ends at 3 min
+[07:30:23] Train:  [         0/1000000000]  eta: 706909 days, 5:35:02  lr: 0.000500  grad: 0.2308 (0.2308)  loss: 1.3537 (1.3537)  vol/s: nan (nan)  tflop/s: nan (nan)  watts: nan (nan)  time: 61.0770  data: 2.2392  max mem: 21968MB
+[07:30:36] Train:  [       100/1000000000]  eta: 8452 days, 0:19:56  lr: 0.000500  grad: 0.5083 (0.5384)  loss: 0.8453 (0.9436)  vol/s: 43 (43)  tflop/s: 37 (37)  watts: 211 (211)  time: 0.1195  data: 0.0019  max mem: 21968MB
+[07:30:47] Train:  [       200/1000000000]  eta: 4895 days, 17:38:21  lr: 0.000500  grad: 0.4994 (0.5304)  loss: 0.7634 (0.8673)  vol/s: 284 (164)  tflop/s: 244 (141)  watts: 625 (418)  time: 0.1150  data: 0.0008  max mem: 24249MB
+[07:30:58] saving checkpoint /home/user/nanobrain/loop-home/loop/smoke/loop-req-v3-00004/out/checkpoint-last.pth
+[07:31:01] Train:  [       300/1000000000]  eta: 3805 days, 23:46:43  lr: 0.000500  grad: 0.4838 (0.5095)  loss: 0.7096 (0.8209)  vol/s: 288 (205)  tflop/s: 247 (176)  watts: 630 (489)  time: 0.2608  data: 0.0009  max mem: 24249MB
+[07:31:12] Train:  [       400/1000000000]  eta: 3176 days, 23:47:34  lr: 0.000500  grad: 0.3951 (0.4857)  loss: 0.6864 (0.7904)  vol/s: 229 (211)  tflop/s: 196 (181)  watts: 527 (498)  time: 0.1133  data: 0.0009  max mem: 24249MB
+[07:31:23] Train:  [       500/1000000000]  eta: 2806 days, 19:05:28  lr: 0.000500  grad: 0.3917 (0.4702)  loss: 0.6655 (0.7673)  vol/s: 279 (225)  tflop/s: 240 (193)  watts: 622 (523)  time: 0.1138  data: 0.0009  max mem: 24249MB
+[07:31:34] saving checkpoint /home/user/nanobrain/loop-home/loop/smoke/loop-req-v3-00004/out/checkpoint-last.pth
+[07:31:37] Train:  [       600/1000000000]  eta: 2606 days, 3:56:36  lr: 0.000500  grad: 0.3598 (0.4537)  loss: 0.6672 (0.7499)  vol/s: 290 (236)  tflop/s: 250 (202)  watts: 636 (542)  time: 0.2556  data: 0.0008  max mem: 24249MB
+[07:31:42] context tail from step 648 (progress 0.700): 1536 visible x 1 samples
+[07:32:17] saving checkpoint /home/user/nanobrain/loop-home/loop/smoke/loop-req-v3-00004/out/checkpoint-last.pth
+[07:32:20] Averaged stats: lr: 0.000003  grad: 0.2846 (0.4379)  loss: 0.6268 (0.7354)  vol/s: 290 (236)  tflop/s: 250 (202)  watts: 636 (542)
+[07:32:20] summary:
+{
+  "step": 696,
+  "images": 22272,
+  "epochs": 0.08788641690803337,
+  "train_flops": 19135238944849920,
+  "wall_seconds": 183.15655162800067,
+  "start_step": 0,
+  "done": true,
+  "stopped_by_signal": false,
+  "final_loss": 0.6267561912536621,
+  "num_params": 104310336,
+  "peak_memory_gb": 27.912316416,
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "num_gpus": 1,
+  "cpus": 16,
+  "torch": "2.14.0+cu130",
+  "cuda": "13.0",
+  "git": {
+    "sha": "45b541e9a993ed33608bce181cd617a95d10be3e",
+    "branch": "loop/b8e14e-loop-req-v3-00004",
+    "dirty": true,
+    "remote": "https://github.com/MedARC-AI/nanobrain"
+  }
+}
+[07:32:20] done! step 696, wall time: 0:03:03
+nanobrain_loadcheck: ok
