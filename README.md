@@ -217,9 +217,10 @@ hour on one H100 and is scored as the mean of the 11 BrainMarks-sMRI dev tasks.
 - **Context.** Other contributors' 1-hour single-GPU runs on the board reach up to 0.5644 (the best before our
   first submission was 0.5352). A reference run that trained a ViT-L on 8×H100 for about 15 hours scored 0.580.
 - **nanopath v2.** On the Labless `nanopath-v2` project our runs reached 0.6855
-  ([run_sub_89113d508d](https://labless.dev/runs/run_sub_89113d508d)), +0.0081 over the prior best of 0.6774, and our
-  0.6810 run ([run_sub_6da523428f](https://labless.dev/runs/run_sub_6da523428f)) is the validated leader. Another
-  contributor's later unvalidated run scored 0.6870.
+  ([run_sub_89113d508d](https://labless.dev/runs/run_sub_89113d508d)), +0.0372 over the best before our first
+  submission (0.6483, Jun 17); much of the Jun–Sep rise to 0.6774 came from other contributors. Our 0.6810 run
+  ([run_sub_6da523428f](https://labless.dev/runs/run_sub_6da523428f)) is the validated leader. Another contributor's
+  later unvalidated run scored 0.6870.
 
 ## Safety rules (enforced in code, not in prompts)
 
