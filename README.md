@@ -189,31 +189,11 @@ experiments.
 
 <!-- RESULTS -->
 
-These results are on the public [Labless](https://labless.dev) project `nanobrain-smri`. Each run trains for one
-hour on one H100 and is scored as the mean of the 11 BrainMarks-sMRI dev tasks.
-
-| run | score | how it was found |
-|---|---|---|
-| [run_sub_a48ee1990d](https://labless.dev/runs/run_sub_a48ee1990d) | 0.5618 | **autonomous**: a node the loop proposed, implemented, ran and confirmed; it became the Labless leader |
-| [run_sub_cae7baa846](https://labless.dev/runs/run_sub_cae7baa846) | 0.5827 | operator-directed, agent-assisted |
-| [run_sub_499ce624bc](https://labless.dev/runs/run_sub_499ce624bc) | 0.5888 | operator-directed, agent-assisted |
-| [run_sub_df88416804](https://labless.dev/runs/run_sub_df88416804) | 0.5963 | operator-directed, agent-assisted (final recipe; 5-seed mean 0.5919) |
-
-- **Autonomous vs operator-directed.** The loop found the 0.5618 node on its own. The later runs built on that node
-  in a research program that a human directed, using the same tooling with agent assistance.
-  The program covered auxiliary pretext losses, synthetic-lesion pretraining, and throughput engineering. The
-  throughput work raised MFU from about 20% to about 34% and roughly doubled the training steps per hour.
+These results are on the public [Labless](https://labless.dev). 
 - **Statistical discipline.** Gains were measured on paired seeds against the parent. A recipe counted as an
   improvement only after a 5-seed confirmation, and preempted runs were excluded from the comparisons.
-  The table shows single submitted runs; the 5-seed mean of the final recipe (0.5919) is the honest estimate of
+  The table shows single submitted runs; the 5-seed mean of the final recipe (0.5919) for nanobrain is the honest estimate of
   its level.
-- **Context.** Other contributors' 1-hour single-GPU runs on the board reach up to 0.5644 (the best before our
-  first submission was 0.5352). A reference run that trained a ViT-L on 8×H100 for about 15 hours scored 0.580.
-- **nanopath v2.** On the Labless `nanopath-v2` project our runs reached 0.6855
-  ([run_sub_89113d508d](https://labless.dev/runs/run_sub_89113d508d)), +0.0372 over the best before our first
-  submission (0.6483, Jun 17); much of the Jun–Sep rise to 0.6774 came from other contributors. Our 0.6810 run
-  ([run_sub_6da523428f](https://labless.dev/runs/run_sub_6da523428f)) is the validated leader. Another contributor's
-  later unvalidated run scored 0.6870.
 
 ## Safety rules (enforced in code, not in prompts)
 
