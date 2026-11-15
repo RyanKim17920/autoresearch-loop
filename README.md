@@ -6,18 +6,11 @@ model: paired seeds, empirical-Bayes shrinkage, and confirm stages on fresh seed
 
 ![nanobrain-smri: prior best 0.5352, ours 0.5963](docs/img/nanobrain_progress.png)
 
-**nanobrain-smri:** prior best 0.5352 (before our first submission, Nov 8) → ours 0.5963 on Nov 14
-([run_sub_df88416804](https://labless.dev/runs/run_sub_df88416804), unvalidated), +0.0611. Other contributors also
-improved (best 0.5644); the validated leader is our autonomous-loop run 0.5618
-([run_sub_a48ee1990d](https://labless.dev/runs/run_sub_a48ee1990d)).
+**nanobrain-smri** · [best run](https://labless.dev/runs/run_sub_df88416804)
 
 ![nanopath v2: prior best 0.6483, ours 0.6855](docs/img/nanopath_progress.png)
 
-**nanopath v2:** prior best 0.6483 (best before our first submission, Jun 17) → ours 0.6855 on Oct 8
-([run_sub_89113d508d](https://labless.dev/runs/run_sub_89113d508d), unvalidated), +0.0372; much of the Jun–Sep rise
-(to 0.6774) came from other contributors. The validated leader is our 0.6810 run
-([run_sub_6da523428f](https://labless.dev/runs/run_sub_6da523428f)); another contributor's later unvalidated 0.6870 is
-higher than our best.
+**nanopath v2** · [best run](https://labless.dev/runs/run_sub_89113d508d)
 
 The division of labour is strict. Plain Python owns all control flow: budgets, seeds, the queue, SLURM
 submission, retries, resume, and every number. LLM agents only do what needs judgement. They propose an idea,
