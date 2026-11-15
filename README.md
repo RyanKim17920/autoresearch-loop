@@ -4,6 +4,20 @@ An LLM-driven autonomous research loop. It proposes, implements, runs and judges
 SLURM cluster. Decisions about what counts as an improvement are made by statistical guards, never by the
 model: paired seeds, empirical-Bayes shrinkage, and confirm stages on fresh seeds.
 
+![nanobrain-smri: our submissions vs. the best score before our first run](docs/img/nanobrain_progress.png)
+
+**nanobrain-smri:** the best score before our first submission (Nov 8, 2026) was 0.5352; our best is 0.5963 on Nov 14
+([run_sub_df88416804](https://labless.dev/runs/run_sub_df88416804), a single unvalidated run), +0.0611. The validated
+Labless leader is our 0.5618 run ([run_sub_a48ee1990d](https://labless.dev/runs/run_sub_a48ee1990d)), found by the
+autonomous loop; the later gains came from operator-directed, agent-assisted work.
+
+![nanopath v2: our submissions vs. the best score before our runs](docs/img/nanopath_progress.png)
+
+**nanopath v2:** other contributors raised the best from 0.6483 (before our first submission, Jun 17) to 0.6774 by
+Sep 10; our runs from Sep 29 reached 0.6855 on Oct 8 ([run_sub_89113d508d](https://labless.dev/runs/run_sub_89113d508d)),
++0.0081. Our 0.6810 run ([run_sub_6da523428f](https://labless.dev/runs/run_sub_6da523428f)) is the validated Labless
+leader; another contributor's unvalidated 0.6870 (Oct 25) is higher than our best single run.
+
 The division of labour is strict. Plain Python owns all control flow: budgets, seeds, the queue, SLURM
 submission, retries, resume, and every number. LLM agents only do what needs judgement. They propose an idea,
 edit a git worktree to implement it, smoke-test it, write postmortems, and review the portfolio. No LLM output
@@ -199,8 +213,12 @@ hour on one H100 and is scored as the mean of the 11 BrainMarks-sMRI dev tasks.
   improvement only after a 5-seed confirmation, and preempted runs were excluded from the comparisons.
   The table shows single submitted runs; the 5-seed mean of the final recipe (0.5919) is the honest estimate of
   its level.
-- **Context.** The other 1-hour single-GPU runs on the board score about 0.52 to 0.56. A reference run that
-  trained a ViT-L on 8×H100 for about 15 hours scored 0.580.
+- **Context.** Other contributors' 1-hour single-GPU runs on the board reach up to 0.5644 (the best before our
+  first submission was 0.5352). A reference run that trained a ViT-L on 8×H100 for about 15 hours scored 0.580.
+- **nanopath v2.** On the Labless `nanopath-v2` project our runs reached 0.6855
+  ([run_sub_89113d508d](https://labless.dev/runs/run_sub_89113d508d)), +0.0081 over the prior best of 0.6774, and our
+  0.6810 run ([run_sub_6da523428f](https://labless.dev/runs/run_sub_6da523428f)) is the validated leader. Another
+  contributor's later unvalidated run scored 0.6870.
 
 ## Safety rules (enforced in code, not in prompts)
 
